@@ -1,0 +1,34 @@
+buildscript {
+  repositories {
+    jcenter()
+  }
+  dependencies {
+    classpath "io.ratpack:ratpack-gradle:0.9.14"
+    classpath "com.github.jengelman.gradle.plugins:shadow:1.2.1"
+  }
+}
+
+apply plugin: "io.ratpack.ratpack-groovy"
+apply plugin: "com.github.johnrengelman.shadow"
+apply plugin: "idea"
+
+repositories {
+  jcenter()
+  maven { url 'http://clinker.netty.io/nexus/content/repositories/snapshots' }
+}
+
+dependencies {
+  // SpringLoaded enables runtime hot reloading.
+  // It is not part of the app runtime and is not shipped in the distribution.
+  //springloaded "org.springframework:springloaded:1.2.1.RELEASE"
+
+  // RxJava support
+  compile ratpack.dependency("rx")
+
+  // Log4j 2.0 is async logging and supports SLF4J Mapped Diagnostic Context (MDC)
+  runtime 'org.apache.logging.log4j:log4j-slf4j-impl:2.0.2'
+  runtime 'org.apache.logging.log4j:log4j-api:2.0.2'
+  runtime 'org.apache.logging.log4j:log4j-core:2.0.2'
+
+  testCompile "org.spockframework:spock-core:0.7-groovy-2.0"
+}

@@ -24,6 +24,7 @@ import ratpack.handling.Context;
 import ratpack.handling.Handler;
 
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 
@@ -32,7 +33,7 @@ import java.util.stream.Stream;
  */
 public class HealthCheckHandler implements Handler {
 
-  public static final String DEFAULT_NAME = "undefined";
+  public static final String DEFAULT_NAME = "DEFAULT";
 
   /**
    * If defined, run only health check with the given name
@@ -56,7 +57,10 @@ public class HealthCheckHandler implements Handler {
       if (hcheck.isPresent()) {
         try {
           Promise<HealthCheck.Result> promise = hcheck.get().check(context.getExecution().getControl());
-          promise.then(r -> {
+          promise.onError(throwable -> {
+            hcheckResults.put(hcheck.get().getName(), HealthCheck.Result.unhealthy(throwable));
+            context.render(new HealthCheckResults(ImmutableSortedMap.<String, HealthCheck.Result>copyOfSorted(hcheckResults)));
+          }).then(r -> {
             hcheckResults.put(hcheck.get().getName(), r);
             context.render(new HealthCheckResults(ImmutableSortedMap.<String, HealthCheck.Result>copyOfSorted(hcheckResults)));
           });
@@ -81,22 +85,57 @@ public class HealthCheckHandler implements Handler {
           hcheckResults.put(hcheck.getName(), HealthCheck.Result.unhealthy(ex));
         }
       });
+
       if (promises.size() == 0) {
         context.render(new HealthCheckResults(ImmutableSortedMap.<String, HealthCheck.Result>copyOfSorted(hcheckResults)));
       }
       else {
+//        context.promise(f -> {
+//          promises.forEach((name, p) -> {
+//            p.then(r -> {
+//              System.out.println("HEALTH CHECK: " + name);
+//              hcheckResults.put(name, r);
+//            });
+//          });
+//          f.success(hcheckResults);
+//        }).then(results -> {
+//          context.render(new HealthCheckResults(ImmutableSortedMap.<String, HealthCheck.Result>copyOfSorted(hcheckResults)));
+//        });
+        // Execute promises in parallel
+        CountDownLatch latch = new CountDownLatch(promises.size());
         context.promise(f -> {
           promises.forEach((name, p) -> {
-            p.then(r -> {
-              System.out.println("HEALTH CHECK: " + name);
-              hcheckResults.put(name, r);
+            context.exec().onComplete(execution -> {
+              System.out.println("HEALTH CHECK: " + name + " COUNTDOWN");
+              latch.countDown();
+            }).onError(throwable -> {
+              System.out.println("HEALTH CHECK: " + name + " EXCEPTION AND COUNTDOWN");
+              hcheckResults.put(name, HealthCheck.Result.unhealthy(throwable));
+              latch.countDown();
+            }).start(execution -> {
+              System.out.println("==> HEALTH CHECK: " + name + " STARTED");
+              p.then(r -> {
+                System.out.println("HEALTH CHECK: " + name + " FINISHED");
+                hcheckResults.put(name, r);
+              });
             });
           });
+          latch.await();
           f.success(hcheckResults);
         }).then(results -> {
           context.render(new HealthCheckResults(ImmutableSortedMap.<String, HealthCheck.Result>copyOfSorted(hcheckResults)));
         });
       }
+    }
+  }
+
+  private static class HealthCheckPromise {
+    public final String name;
+    public final Promise<HealthCheck.Result> promise;
+
+    public HealthCheckPromise(String name, final Promise<HealthCheck.Result> promise) {
+      this.name = name;
+      this.promise = promise;
     }
   }
 }

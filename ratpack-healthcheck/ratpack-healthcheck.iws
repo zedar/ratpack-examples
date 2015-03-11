@@ -157,9 +157,9 @@
     <configuration default="false" name="Ratpack Run (:)" type="Application" factoryName="Application">
       <extension name="coverage" enabled="false" merge="false"/>
       <option name="MAIN_CLASS_NAME" value="ratpack.groovy.GroovyRatpackMain"/>
-      <option name="VM_PARAMETERS" value="&quot;-Dratpack.development=true&quot; &quot;-Dfile.encoding=UTF-8&quot; &quot;-Duser.country=PL&quot; &quot;-Duser.language=pl&quot; &quot;-Duser.variant&quot;"/>
+      <option name="VM_PARAMETERS" value="&quot;-Dratpack.development=true&quot; &quot;-Dfile.encoding=windows-1250&quot; &quot;-Duser.country=PL&quot; &quot;-Duser.language=pl&quot; &quot;-Duser.variant&quot;"/>
       <option name="PROGRAM_PARAMETERS" value=""/>
-      <option name="WORKING_DIRECTORY" value="/Users/zedar/dev/ratpackdev/ratpack-examples/ratpack-healthcheck/src/ratpack"/>
+      <option name="WORKING_DIRECTORY" value="C:\dev\vagrant\test\ratpack-examples\ratpack-healthcheck\src\ratpack"/>
       <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false"/>
       <option name="ALTERNATIVE_JRE_PATH" value=""/>
       <option name="ENABLE_SWING_INSPECTOR" value="false"/>

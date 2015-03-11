@@ -1,5 +1,6 @@
 import health.BarHealthCheck
 import health.FooHealthCheck
+import health.WithExceptionHealthCheck
 import ratpack.health.HealthCheck
 import ratpack.health.HealthCheckHandler
 import ratpack.health.HealthCheckResultsRenderer
@@ -19,6 +20,7 @@ ratpack {
         f.success(HealthCheck.Result.healthy("fooooo1"))
       }
     })
+    bind WithExceptionHealthCheck
   }
 
   handlers {

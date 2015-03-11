@@ -16,14 +16,15 @@
 
 package ratpack.health;
 
+import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.reflect.TypeToken;
 import ratpack.exec.ExecControl;
+import ratpack.exec.Promise;
 import ratpack.handling.Context;
 import ratpack.handling.Handler;
 
-import java.util.Optional;
-import java.util.SortedMap;
-import java.util.TreeMap;
+import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 
 /**
@@ -48,36 +49,54 @@ public class HealthCheckHandler implements Handler {
 
   @Override
   public void handle(Context context) throws Exception {
+    System.out.println("HEALTHCHECK HANDLER: " + name);
     SortedMap<String, HealthCheck.Result> hcheckResults = new TreeMap<String, HealthCheck.Result>();
     if (!name.equals(DEFAULT_NAME)) {
       Optional<HealthCheck> hcheck = context.first(TypeToken.of(HealthCheck.class), hc -> hc.getName().equals(name));
       if (hcheck.isPresent()) {
-        execAndCollectResult(hcheck.get(), hcheckResults, context.getExecution().getControl());
+        try {
+          Promise<HealthCheck.Result> promise = hcheck.get().check(context.getExecution().getControl());
+          promise.then(r -> {
+            hcheckResults.put(hcheck.get().getName(), r);
+            context.render(new HealthCheckResults(ImmutableSortedMap.<String, HealthCheck.Result>copyOfSorted(hcheckResults)));
+          });
+        }
+        catch (Exception ex) {
+          hcheckResults.put(hcheck.get().getName(), HealthCheck.Result.unhealthy(ex));
+          context.render(new HealthCheckResults(ImmutableSortedMap.<String, HealthCheck.Result>copyOfSorted(hcheckResults)));
+        }
       }
       else {
         context.clientError(404);
       }
     }
     else {
-      context.getAll(HealthCheck.class).forEach(hc -> {
-        execAndCollectResult(hc, hcheckResults, context.getExecution().getControl());
+      SortedMap<String, Promise<HealthCheck.Result>> promises = new TreeMap<>();
+      context.getAll(HealthCheck.class).forEach(hcheck -> {
+        try {
+          Promise<HealthCheck.Result> promise = hcheck.check(context.getExecution().getControl());
+          promises.put(hcheck.getName(), promise);
+        }
+        catch (Exception ex) {
+          hcheckResults.put(hcheck.getName(), HealthCheck.Result.unhealthy(ex));
+        }
       });
+      if (promises.size() == 0) {
+        context.render(new HealthCheckResults(ImmutableSortedMap.<String, HealthCheck.Result>copyOfSorted(hcheckResults)));
+      }
+      else {
+        context.promise(f -> {
+          promises.forEach((name, p) -> {
+            p.then(r -> {
+              System.out.println("HEALTH CHECK: " + name);
+              hcheckResults.put(name, r);
+            });
+          });
+          f.success(hcheckResults);
+        }).then(results -> {
+          context.render(new HealthCheckResults(ImmutableSortedMap.<String, HealthCheck.Result>copyOfSorted(hcheckResults)));
+        });
+      }
     }
-    //context.render();
-  }
-
-  private HealthCheck execAndCollectResult(HealthCheck hc, SortedMap<String, HealthCheck.Result> results, ExecControl execControl) {
-    if (hc == null || execControl == null) {
-      return null;
-    }
-    try {
-      hc.check(execControl).then(r -> {
-        results.put(hc.getName(), r);
-      });
-    }
-    catch (Exception ex) {
-      results.put(hc.getName(), HealthCheck.Result.unhealthy(ex));
-    }
-    return hc;
   }
 }

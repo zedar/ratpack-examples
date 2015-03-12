@@ -18,22 +18,84 @@ package ratpack.health;
 
 import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.reflect.TypeToken;
-import ratpack.exec.ExecControl;
 import ratpack.exec.Promise;
 import ratpack.handling.Context;
 import ratpack.handling.Handler;
 
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
-import java.util.stream.Stream;
 
 /**
  * Handler that runs and renders health checks executing in non-blocking mode
+ * <p>
+ * This handler queries {@code context} for either all or {@link ratpack.health.HealthCheck} with given token.
+ * Then handler gets {@link Promise<HealthCheck.Result>} for every health check to execute.
+ * Promises are executed in parallel and independently.
+ * <p>
+ * This handler should be bound to an application path, and most likely only for the GET method.
+ * <pre class="java-chain-dsl">
+ * import ratpack.health.HealthCheckHandler;
+ *
+ * chain instanceof ratpack.handling.Chain;
+ * chain.get("health-checks/:name?", new HealthCheckHandler());
+ * </pre>
+ * <p>
+ * The handler can render the result of all of the health checks or an individual health check, depending on the presence of a path token.
+ * The path token provides the name of the health check to render.
+ * If the path token is not present, all health checks will be rendered.
+ * The token name to use can be provided as the construction argument to this handler.
+ * The default token name is {@value #DEFAULT_NAME_TOKEN} and is used if the no-arg constructor is used.
+ * <p>
+ * If the token is present, the health check whose name is the value of the token will be rendered.
+ * If no health check exists by that name, the client will receive a 404.
+ * <p>
+ * When a single health check is selected (by presence of the path token)
+ * the {@link ratpack.health.HealthCheckResults} with one {@link ratpack.health.HealthCheck.Result}
+ * is {@link Context#render(Object) rendered}.
+ * When rendering all health checks a {@link ratpack.health.HealthCheckResults} is {@link Context#render(Object) rendered}.
+ * <p>
+ * The default {@link ratpack.health.HealthCheckResultsRenderer} is added to base registry. It renders in plain text.
+ * If you wish to change the output, to JSON for example, you can register your own renderer for {@link ratpack.health.HealthCheckResults}.
+ * <pre class="java">{@code
+ * import ratpack.exec.ExecControl;
+ * import ratpack.exec.Promise;
+ * import ratpack.guice.Guice;
+ * import ratpack.health.HealthCheck;
+ * import ratpack.health.HealthCheckHandler;
+ * import ratpack.health.HealthCheckResultsRenderer;
+ * import ratpack.test.embed.EmbeddedApp;
+
+ * import static org.junit.Assert.*;
+
+ * public class JavaDocTests {
+ *   public static class FooHealthCheck implements HealthCheck {
+ *     public String getName() { return "foo"; }
+ *     public Promise<HealthCheck.Result> check(ExecControl execControl) throws Exception {
+ *       return execControl.promise(f -> {
+ *         f.success(HealthCheck.Result.healthy());
+ *       });
+ *     }
+ *   }
+ *
+ *   public static void mainTest(String... args) throws Exception {
+ *     EmbeddedApp.of(s -> s
+ *       .registryOf(r -> r
+ *         .add(new HealthCheckResultsRenderer())
+ *       )
+ *       .registry(Guice.registry(b -> b
+ *         .bind(FooHealthCheck.class)
+ *       ))
+ *       .handler(HealthCheckHandler.class)
+ *     ).test(httpClient -> {
+ *       assertEquals("foo : HEALTHY", httpClient.getText());
+ *     });
+ *   }
+ * }
+ * }</pre>
  */
 public class HealthCheckHandler implements Handler {
 
-  public static final String DEFAULT_NAME = "DEFAULT";
+  public static final String DEFAULT_NAME_TOKEN = "DEFAULT";
 
   /**
    * If defined, run only health check with the given name
@@ -41,7 +103,7 @@ public class HealthCheckHandler implements Handler {
   private final String name;
 
   public HealthCheckHandler() {
-    this(DEFAULT_NAME);
+    this(DEFAULT_NAME_TOKEN);
   }
 
   public HealthCheckHandler(String healthCheckName) {
@@ -52,7 +114,7 @@ public class HealthCheckHandler implements Handler {
   public void handle(Context context) throws Exception {
     System.out.println("HEALTHCHECK HANDLER: " + name);
     SortedMap<String, HealthCheck.Result> hcheckResults = new TreeMap<String, HealthCheck.Result>();
-    if (!name.equals(DEFAULT_NAME)) {
+    if (!name.equals(DEFAULT_NAME_TOKEN)) {
       Optional<HealthCheck> hcheck = context.first(TypeToken.of(HealthCheck.class), hc -> hc.getName().equals(name));
       if (hcheck.isPresent()) {
         try {
@@ -90,17 +152,6 @@ public class HealthCheckHandler implements Handler {
         context.render(new HealthCheckResults(ImmutableSortedMap.<String, HealthCheck.Result>copyOfSorted(hcheckResults)));
       }
       else {
-//        context.promise(f -> {
-//          promises.forEach((name, p) -> {
-//            p.then(r -> {
-//              System.out.println("HEALTH CHECK: " + name);
-//              hcheckResults.put(name, r);
-//            });
-//          });
-//          f.success(hcheckResults);
-//        }).then(results -> {
-//          context.render(new HealthCheckResults(ImmutableSortedMap.<String, HealthCheck.Result>copyOfSorted(hcheckResults)));
-//        });
         // Execute promises in parallel
         CountDownLatch latch = new CountDownLatch(promises.size());
         context.promise(f -> {

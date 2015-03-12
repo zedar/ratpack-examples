@@ -24,6 +24,8 @@ import ratpack.health.HealthCheckHandler;
 import ratpack.health.HealthCheckResultsRenderer;
 import ratpack.test.embed.EmbeddedApp;
 
+import javax.swing.*;
+
 import static org.junit.Assert.*;
 
 public class JavaDocTests {
@@ -47,6 +49,25 @@ public class JavaDocTests {
       .handler(HealthCheckHandler.class)
     ).test(httpClient -> {
       assertEquals("foo : HEALTHY", httpClient.getText());
+    });
+
+    EmbeddedApp.of(s -> s
+      .registryOf(r -> r
+                      .add(new HealthCheckResultsRenderer())
+      )
+      .registry(Guice.registry(b -> b
+        .bind(FooHealthCheck.class)
+        .bindInstance(HealthCheck.class, HealthCheck.of("bar", execControl -> {
+          return execControl.promise(f -> {
+            f.success(HealthCheck.Result.unhealthy("FAILED"));
+          });
+        }))
+      ))
+      .handler(r -> {
+        return new HealthCheckHandler("bar");
+      })
+    ).test(httpClient -> {
+      assertEquals("bar : FAILED", httpClient.getText());
     });
   }
 }

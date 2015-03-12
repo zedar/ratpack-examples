@@ -32,4 +32,6 @@ dependencies {
 
   compile 'junit:junit:4.10'
   compile ratpack.dependency("test")
+  compile ratpack.dependency("groovy-test")
+  compile ratpack.dependency("remote-test")
 }

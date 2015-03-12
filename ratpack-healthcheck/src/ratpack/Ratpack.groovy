@@ -29,7 +29,8 @@ ratpack {
     register {
       // O
       add(Renderer.of(HealthCheckResults) { ctx, r ->
-        if (ctx.getRequest().getHeaders()?.get("Accept") == "application/json") {
+        def headers = ctx.request.headers
+        if (headers?.get("Accept") == "application/json" || headers?.get("Content-Type") == "application/json") {
           ctx.response.headers
             .add("Cache-Control", "no-cache, no-store, must-revalidate")
             .add("Pragma", "no-cache")

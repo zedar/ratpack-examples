@@ -23,6 +23,7 @@ import ratpack.handling.Context;
 import ratpack.handling.Handler;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 
 /**
@@ -67,7 +68,7 @@ import java.util.concurrent.CountDownLatch;
 
  * import static org.junit.Assert.*;
 
- * public class JavaDocTests {
+ * public class Example {
  *   public static class FooHealthCheck implements HealthCheck {
  *     public String getName() { return "foo"; }
  *     public Promise<HealthCheck.Result> check(ExecControl execControl) throws Exception {
@@ -77,7 +78,7 @@ import java.util.concurrent.CountDownLatch;
  *     }
  *   }
  *
- *   public static void mainTest(String... args) throws Exception {
+ *   public static void main(String... args) throws Exception {
  *     EmbeddedApp.of(s -> s
  *       .registryOf(r -> r
  *         .add(new HealthCheckResultsRenderer())
@@ -136,7 +137,7 @@ public class HealthCheckHandler implements Handler {
   @Override
   public void handle(Context context) throws Exception {
     System.out.println("HEALTHCHECK HANDLER: " + name);
-    SortedMap<String, HealthCheck.Result> hcheckResults = new TreeMap<String, HealthCheck.Result>();
+    SortedMap<String, HealthCheck.Result> hcheckResults = new ConcurrentSkipListMap<String, HealthCheck.Result>();
     if (!name.equals(DEFAULT_NAME_TOKEN)) {
       Optional<HealthCheck> hcheck = context.first(TypeToken.of(HealthCheck.class), hc -> hc.getName().equals(name));
       if (hcheck.isPresent()) {

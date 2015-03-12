@@ -30,6 +30,9 @@ public class HealthCheckResults {
     this.results = results;
   }
 
+  /**
+   * @return Immutable sorted map of health name and its {@code HealthCheck.Result}
+   */
   public ImmutableSortedMap<String, HealthCheck.Result> getResults() {
     return results;
   }

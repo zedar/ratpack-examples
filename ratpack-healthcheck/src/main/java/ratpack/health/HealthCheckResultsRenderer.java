@@ -21,6 +21,15 @@ import ratpack.render.RendererSupport;
 
 /**
  * A renderer for results of non-blocking health checks used by {@link ratpack.handling.Context#render(Object) renderable}
+ * <p>
+ * Renders in plain text in the following format
+ * <pre>{@code
+ *  name : HEALTHY|UNHEALTHY [message] [exception]
+ * }</pre>
+ * <p>
+ * Renderer sets no caching HTTP pragmas on {@code Context#getResponse()} object.
+ * <p>
+ * Renderer is automatically added to <strong>Ratpack's</strong> base registry.
  *
  * @see ratpack.health.HealthCheckResults
  * @see ratpack.health.HealthCheckHandler

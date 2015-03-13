@@ -136,7 +136,6 @@ public class HealthCheckHandler implements Handler {
 
   @Override
   public void handle(Context context) throws Exception {
-    System.out.println("HEALTHCHECK HANDLER: " + name);
     SortedMap<String, HealthCheck.Result> hcheckResults = new ConcurrentSkipListMap<String, HealthCheck.Result>();
     if (!name.equals(DEFAULT_NAME_TOKEN)) {
       Optional<HealthCheck> hcheck = context.first(TypeToken.of(HealthCheck.class), hc -> hc.getName().equals(name));
@@ -181,16 +180,12 @@ public class HealthCheckHandler implements Handler {
         context.promise(f -> {
           promises.forEach((name, p) -> {
             context.exec().onComplete(execution -> {
-              System.out.println("HEALTH CHECK: " + name + " COUNTDOWN");
               latch.countDown();
             }).onError(throwable -> {
-              System.out.println("HEALTH CHECK: " + name + " EXCEPTION AND COUNTDOWN");
               hcheckResults.put(name, HealthCheck.Result.unhealthy(throwable));
               latch.countDown();
             }).start(execution -> {
-              System.out.println("==> HEALTH CHECK: " + name + " STARTED");
               p.then(r -> {
-                System.out.println("HEALTH CHECK: " + name + " FINISHED");
                 hcheckResults.put(name, r);
               });
             });

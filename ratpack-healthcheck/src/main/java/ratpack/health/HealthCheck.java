@@ -25,7 +25,7 @@ import ratpack.func.Function;
  *  <p>
  *  Interface is based on <a href="https://dropwizard.github.io/metrics/3.1.0/apidocs/">Coda Hale's HealthCheck</a>.
  *  Instead of {@code HeathCheck.Result} it returns {@code Promise<HealthCheck.Result>}.
- *  In <strong>Ratpack</strong> all health checks have name.
+ *  In <strong>Ratpack</strong> all health checks have a name.
  *
  *  @see ratpack.health.HealthCheckHandler
  */

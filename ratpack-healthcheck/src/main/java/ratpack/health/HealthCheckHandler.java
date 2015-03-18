@@ -121,18 +121,33 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class HealthCheckHandler implements Handler {
 
   public static final String DEFAULT_NAME_TOKEN = "DEFAULT";
-
+  public static final int DEFAULT_CONCURENCY_LEVEL = 0;
   /**
    * If defined, run only health check with the given name
    */
   private final String name;
 
+  /**
+   * Define number of health checks (as promises) to be run in parallel.
+   * 0 - infinite potential parallelism
+   * 1 - serial, promises run one by one in sequence
+   * 2 - max 2 at a time promises run in parallel
+   * 3 - max 3 at a time promises run in parallel
+   * ...
+   */
+  private final int concurrencyLevel;
+
   public HealthCheckHandler() {
-    this(DEFAULT_NAME_TOKEN);
+    this(DEFAULT_NAME_TOKEN, DEFAULT_CONCURENCY_LEVEL);
   }
 
   public HealthCheckHandler(String healthCheckName) {
+    this(healthCheckName, DEFAULT_CONCURENCY_LEVEL);
+  }
+
+  public HealthCheckHandler(String healthCheckName, int concurrencyLevel) {
     this.name = healthCheckName;
+    this.concurrencyLevel = concurrencyLevel;
   }
 
   @Override
@@ -177,17 +192,17 @@ public class HealthCheckHandler implements Handler {
       }
       else {
         // Execute promises in parallel
-        AtomicInteger count = new AtomicInteger(promises.size());
+        AtomicInteger countDown = new AtomicInteger(promises.size());
 
         context.promise(f -> {
           promises.forEach((name, p) -> {
             context.exec().onComplete(execution -> {
-              if (count.decrementAndGet() == 0) {
+              if (countDown.decrementAndGet() == 0) {
                 f.success(hcheckResults);
               }
             }).onError(throwable -> {
               hcheckResults.put(name, HealthCheck.Result.unhealthy(throwable));
-              if (count.decrementAndGet() == 0) {
+              if (countDown.decrementAndGet() == 0) {
                 f.success(hcheckResults);
               }
             }).start(execution -> {

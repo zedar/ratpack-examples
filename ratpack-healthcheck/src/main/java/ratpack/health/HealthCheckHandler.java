@@ -25,6 +25,7 @@ import ratpack.handling.Handler;
 import java.util.*;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Handler that runs and renders health checks executing in non-blocking mode
@@ -136,7 +137,7 @@ public class HealthCheckHandler implements Handler {
 
   @Override
   public void handle(Context context) throws Exception {
-    SortedMap<String, HealthCheck.Result> hcheckResults = new ConcurrentSkipListMap<String, HealthCheck.Result>();
+    SortedMap<String, HealthCheck.Result> hcheckResults = new ConcurrentSkipListMap<>();
     if (!name.equals(DEFAULT_NAME_TOKEN)) {
       Optional<HealthCheck> hcheck = context.first(TypeToken.of(HealthCheck.class), hc -> hc.getName().equals(name));
       if (hcheck.isPresent()) {
@@ -160,7 +161,7 @@ public class HealthCheckHandler implements Handler {
       }
     }
     else {
-      SortedMap<String, Promise<HealthCheck.Result>> promises = new TreeMap<>();
+      SortedMap<String, Promise<HealthCheck.Result>> promises = new ConcurrentSkipListMap<>();
       context.getAll(HealthCheck.class).forEach(hcheck -> {
         try {
           Promise<HealthCheck.Result> promise = hcheck.check(context.getExecution().getControl());
@@ -176,22 +177,25 @@ public class HealthCheckHandler implements Handler {
       }
       else {
         // Execute promises in parallel
-        CountDownLatch latch = new CountDownLatch(promises.size());
+        AtomicInteger count = new AtomicInteger(promises.size());
+
         context.promise(f -> {
           promises.forEach((name, p) -> {
             context.exec().onComplete(execution -> {
-              latch.countDown();
+              if (count.decrementAndGet() == 0) {
+                f.success(hcheckResults);
+              }
             }).onError(throwable -> {
               hcheckResults.put(name, HealthCheck.Result.unhealthy(throwable));
-              latch.countDown();
+              if (count.decrementAndGet() == 0) {
+                f.success(hcheckResults);
+              }
             }).start(execution -> {
               p.then(r -> {
                 hcheckResults.put(name, r);
               });
             });
           });
-          latch.await();
-          f.success(hcheckResults);
         }).then(results -> {
           context.render(new HealthCheckResults(ImmutableSortedMap.<String, HealthCheck.Result>copyOfSorted(hcheckResults)));
         });

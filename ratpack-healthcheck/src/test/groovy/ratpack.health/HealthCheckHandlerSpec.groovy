@@ -1,11 +1,17 @@
 package ratpack.health
 
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
 import ratpack.exec.ExecControl
 import ratpack.exec.Promise
 import ratpack.groovy.test.embed.GroovyEmbeddedApp
+import ratpack.http.MediaType
+import ratpack.render.Renderer
 import ratpack.test.embed.EmbeddedApp
 import ratpack.test.http.TestHttpClient
 import spock.lang.Specification
+
+import java.util.concurrent.CountDownLatch
 
 class HealthCheckFooHealthy implements HealthCheck {
   String getName() { return "foo" }
@@ -205,19 +211,163 @@ class HealthCheckHandlerSpec extends Specification {
     }
   }
 
-  def "duplicated health checks renders only once"() {
+  def "health checks run in parallel"() {
+    given:
+    CountDownLatch latch = new CountDownLatch(1)
 
+    when:
+    EmbeddedApp app = GroovyEmbeddedApp.build {
+      handlers {
+        register {
+          add new HealthCheckResultsRenderer()
+          add HealthCheck.of("baz") { ec ->
+            ec.promise { f ->
+              latch.await()
+              f.success(HealthCheck.Result.healthy())
+            }
+          }
+          add HealthCheck.of("quux") { ec ->
+            ec.promise { f ->
+              latch.countDown()
+              f.success(HealthCheck.Result.healthy())
+            }
+          }
+        }
+        get("health-checks", new HealthCheckHandler())
+      }
+    }
+    then:
+    app.test { TestHttpClient httpClient ->
+      def result = httpClient.getText("health-checks")
+      String[] results = result.split("\n")
+      assert results[0].startsWith("baz")
+      assert results[0].contains("HEALTHY")
+      assert results[1].startsWith("quux")
+      assert results[1].contains("HEALTHY")
+    }
+  }
+
+  def "duplicated health checks renders only once"() {
+    when:
+    EmbeddedApp app = GroovyEmbeddedApp.build {
+      bindings {
+        bind HealthCheckFooHealthy
+        bind HealthCheckFooHealthy
+      }
+      handlers {
+        register {
+          add new HealthCheckResultsRenderer()
+          add HealthCheck.of("foo") { ec ->
+            ec.promise { f ->
+              latch.await()
+              f.success(HealthCheck.Result.unhealthy("Unhealthy"))
+            }
+          }
+        }
+        get("health-checks", new HealthCheckHandler())
+      }
+    }
+    then:
+    app.test { TestHttpClient httpClient ->
+      def result = httpClient.getText("health-checks")
+      String[] results = result.split("\n")
+      assert results.size() == 1
+      assert results[0].startsWith("foo")
+      assert results[0].contains("HEALTHY")
+    }
   }
 
   def "render health check by token if more health checks in registry"() {
+    when:
+    EmbeddedApp app = GroovyEmbeddedApp.build {
+      bindings {
+        bind HealthCheckFooHealthy
+        bind HealthCheckBarHealthy
+      }
+      handlers {
+        register {
+          add new HealthCheckResultsRenderer()
+          add HealthCheck.of("baz") { ec ->
+            ec.promise { f ->
+              f.success(HealthCheck.Result.unhealthy("Unhealthy"))
+            }
+          }
+          add HealthCheck.of("quux") { ec ->
+            ec.promise { f ->
+              f.success(HealthCheck.Result.healthy())
+            }
+          }
+        }
+        get("health-checks/:name") { ctx ->
+          new HealthCheckHandler(pathTokens["name"]).handle(ctx)
+        }
+      }
+    }
 
+    then:
+    app.test { TestHttpClient httpClient ->
+      def result = httpClient.getText("health-checks/foo")
+      String[] results = result.split("\n")
+      assert results.length == 1
+      assert results[0].startsWith("foo")
+      assert results[0].contains("HEALTHY")
+
+      result = httpClient.getText("health-checks/baz")
+      results = result.split("\n")
+      assert results[0].startsWith("baz")
+      assert results[0].contains("UNHEALTHY")
+    }
   }
 
   def "render json health check results for custom renderer"() {
+    given:
+    def json = new JsonSlurper()
 
-  }
+    when:
+    EmbeddedApp app = GroovyEmbeddedApp.build {
+      bindings {
+        bind HealthCheckFooHealthy
+        bind HealthCheckBarHealthy
+      }
+      handlers {
+        register {
+          add(Renderer.of(HealthCheckResults) { ctx, r ->
+            def headers = ctx.request.headers
+            if (headers?.get("Accept") == "application/json" || headers?.get("Content-Type") == "application/json") {
+              ctx.response.headers
+                      .add("Cache-Control", "no-cache, no-store, must-revalidate")
+                      .add("Pragma", "no-cache")
+                      .add("Expires", 0)
+                      .add("Content-Type", "application/json")
+              ctx.render(JsonOutput.toJson(r.getResults()))
+            }
+            else {
+              // no caching headers are set inside default renderer
+              new HealthCheckResultsRenderer().render(ctx, r)
+            }
+          })
+          add HealthCheck.of("baz") { ec ->
+            ec.promise { f ->
+              f.success(HealthCheck.Result.unhealthy("Unhealthy"))
+            }
+          }
+        }
+        get("health-checks", new HealthCheckHandler())
+      }
+    }
 
-  def "render ordered health checks for parallel executions"() {
-
+    then:
+    app.test{TestHttpClient httpClient ->
+      httpClient.requestSpec{ spec ->
+        spec.headers.add("Accept", "application/json")
+      }
+      def result = httpClient.get("health-checks")
+      assert result.body.contentType.toString() == MediaType.APPLICATION_JSON
+      def results = json.parse(result.body.inputStream)
+      assert results.foo.healthy == true
+      assert results.bar.healthy == true
+      assert results.baz.healthy == false
+      assert results.baz.message == "Unhealthy"
+    }
   }
 }

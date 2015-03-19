@@ -28,21 +28,21 @@ ratpack {
   handlers {
     register {
       // O
-      add(Renderer.of(HealthCheckResults) { ctx, r ->
-        def headers = ctx.request.headers
-        if (headers?.get("Accept") == "application/json" || headers?.get("Content-Type") == "application/json") {
-          ctx.response.headers
-            .add("Cache-Control", "no-cache, no-store, must-revalidate")
-            .add("Pragma", "no-cache")
-            .add("Expires", 0)
-          ctx.render(JsonOutput.toJson(r.getResults()))
-        }
-        else {
-          // no caching headers are set inside default renderer
-          new HealthCheckResultsRenderer().render(ctx, r)
-        }
-      })
-      //add new HealthCheckResultsRenderer()
+//      add(Renderer.of(HealthCheckResults) { ctx, r ->
+//        def headers = ctx.request.headers
+//        if (headers?.get("Accept") == "application/json" || headers?.get("Content-Type") == "application/json") {
+//          ctx.response.headers
+//            .add("Cache-Control", "no-cache, no-store, must-revalidate")
+//            .add("Pragma", "no-cache")
+//            .add("Expires", 0)
+//          ctx.render(JsonOutput.toJson(r.getResults()))
+//        }
+//        else {
+//          // no caching headers are set inside default renderer
+//          new HealthCheckResultsRenderer().render(ctx, r)
+//        }
+//      })
+      add new HealthCheckResultsRenderer()
     }
     handler {
       // register interceptor for SLF4J MDC support
@@ -59,6 +59,12 @@ ratpack {
 
     get("health-checks/:name") { ctx ->
       new HealthCheckHandler(pathTokens["name"]).handle(ctx)
+    }
+
+    get("health-checks-c/:concurrencyLevel") {ctx ->
+      def cl = pathTokens["concurrencyLevel"]
+      cl = cl ? cl.toInteger() : 0
+      new HealthCheckHandler(cl).handle(ctx)
     }
   }
 }

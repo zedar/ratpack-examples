@@ -16,6 +16,7 @@
 
 package ratpack.health;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.reflect.TypeToken;
 import ratpack.exec.Promise;
@@ -23,8 +24,8 @@ import ratpack.handling.Context;
 import ratpack.handling.Handler;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -121,7 +122,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class HealthCheckHandler implements Handler {
 
   public static final String DEFAULT_NAME_TOKEN = "DEFAULT";
-  public static final int DEFAULT_CONCURENCY_LEVEL = 0;
+  public static final int DEFAULT_CONCURRENCY_LEVEL = 0;
   /**
    * If defined, run only health check with the given name
    */
@@ -138,11 +139,15 @@ public class HealthCheckHandler implements Handler {
   private final int concurrencyLevel;
 
   public HealthCheckHandler() {
-    this(DEFAULT_NAME_TOKEN, DEFAULT_CONCURENCY_LEVEL);
+    this(DEFAULT_NAME_TOKEN, DEFAULT_CONCURRENCY_LEVEL);
   }
 
   public HealthCheckHandler(String healthCheckName) {
-    this(healthCheckName, DEFAULT_CONCURENCY_LEVEL);
+    this(healthCheckName, DEFAULT_CONCURRENCY_LEVEL);
+  }
+
+  public HealthCheckHandler(int concurrencyLevel) {
+    this(DEFAULT_NAME_TOKEN, concurrencyLevel);
   }
 
   public HealthCheckHandler(String healthCheckName, int concurrencyLevel) {
@@ -193,23 +198,122 @@ public class HealthCheckHandler implements Handler {
       else {
         // Execute promises in parallel
         AtomicInteger countDown = new AtomicInteger(promises.size());
+        AtomicInteger queuedPromises = new AtomicInteger(promises.size());
 
         context.promise(f -> {
+          Map<String, Promise<HealthCheck.Result>> toExecPromises = new ConcurrentHashMap<String, Promise<HealthCheck.Result>>();
           promises.forEach((name, p) -> {
-            context.exec().onComplete(execution -> {
-              if (countDown.decrementAndGet() == 0) {
-                f.success(hcheckResults);
+            boolean execParallel = false;
+            if (concurrencyLevel <= 0) {
+              // execute every health check in parallel
+              execParallel = true;
+              queuedPromises.decrementAndGet();
+            } else if (concurrencyLevel == 1) {
+              execParallel = false;
+              queuedPromises.decrementAndGet();
+            } else {
+              System.out.println("==> PROMISE IN QUEUE: " + name);
+              toExecPromises.put(name, p);
+              if (queuedPromises.decrementAndGet() > 0 && toExecPromises.size() < concurrencyLevel) {
+                return;
               }
-            }).onError(throwable -> {
-              hcheckResults.put(name, HealthCheck.Result.unhealthy(throwable));
-              if (countDown.decrementAndGet() == 0) {
-                f.success(hcheckResults);
-              }
-            }).start(execution -> {
-              p.then(r -> {
-                hcheckResults.put(name, r);
+              System.out.println("==> EXECUTE QUEUE: ");
+              execParallel = true;
+            }
+
+            if (toExecPromises.size() > 0) {
+              context.promiseOf(ImmutableMap.<String, Promise<HealthCheck.Result>>copyOf(toExecPromises)).then(map -> {
+                AtomicInteger countDown2 = new AtomicInteger(map.size());
+                context.promise(f2 -> {
+                  map.forEach((name2, p2) -> {
+                    context.exec().onComplete(execution2 -> {
+                      System.out.println("==> PROMISE THEN: " + name2);
+                      int i = countDown.decrementAndGet();
+                      if (countDown2.decrementAndGet() == 0 || i == 0) {
+                        f2.success(i == 0 ? Boolean.TRUE : Boolean.FALSE);
+                      }
+                    }).onError(throwable -> {
+                      System.out.println("==> PROMISE onERROR: " + name2);
+                      hcheckResults.put(name2, HealthCheck.Result.unhealthy(throwable));
+                      int i = countDown.decrementAndGet();
+                      if (countDown2.decrementAndGet() == 0 || i == 0) {
+                        f2.success(i == 0 ? Boolean.TRUE : Boolean.FALSE);
+                      }
+                    }).start(execution2 -> {
+                      System.out.println("==> EXECUTING PROMISE: " + name2);
+                      p2.then(r -> {
+                        hcheckResults.put(name2, r);
+                      });
+                    });
+                  });
+                }).then(finish -> {
+                  if (finish == Boolean.TRUE) {
+                    f.success(hcheckResults);
+                  }
+                });
               });
-            });
+
+              toExecPromises.clear();
+
+            } else {
+              if (execParallel) {
+                context.exec().onComplete(execution -> {
+                  System.out.println("==> PROMISE THEN: " + name);
+                  if (countDown.decrementAndGet() == 0) {
+                    f.success(hcheckResults);
+                  }
+                }).onError(throwable -> {
+                  System.out.println("==> PROMISE onERROR: " + name);
+                  hcheckResults.put(name, HealthCheck.Result.unhealthy(throwable));
+                  if (countDown.decrementAndGet() == 0) {
+                    f.success(hcheckResults);
+                  }
+                }).start(execution -> {
+                  System.out.println("==> EXECUTING PROMISE: " + name);
+                  p.then(r -> {
+                    hcheckResults.put(name, r);
+                  });
+                });
+              } else {
+                context.promise(f2 -> {
+                  context.exec().onComplete(execution2 -> {
+                    System.out.println("==> PROMISE THEN: " + name);
+                    int i = countDown.decrementAndGet();
+                    f2.success(i == 0 ? Boolean.TRUE : Boolean.FALSE);
+                  }).onError(throwable -> {
+                    System.out.println("==> PROMISE onERROR: " + name);
+                    hcheckResults.put(name, HealthCheck.Result.unhealthy(throwable));
+                    int i = countDown.decrementAndGet();
+                    f2.success(i == 0 ? Boolean.TRUE : Boolean.FALSE);
+                  }).start(execution -> {
+                    System.out.println("==> EXECUTING PROMISE: " + name);
+                    p.then(r -> {
+                      hcheckResults.put(name, r);
+                    });
+                  });
+                }).then(finish -> {
+                  if (finish == Boolean.TRUE) {
+                    f.success(hcheckResults);
+                  }
+                });
+//                System.out.println("==> EXECUTING PROMISE: " + name);
+//                p.onError(throwable -> {
+//                  System.out.println("==> PROMISE onERROR: " + name);
+//                  hcheckResults.put(name, HealthCheck.Result.unhealthy(throwable));
+//                  if (countDown.decrementAndGet() == 0) {
+//                    System.out.println("==> PROMISE onERROR FINISHED: " + name);
+//                    f.success(hcheckResults);
+//                  }
+//                  System.out.println("==> PROMISE onERROR NOT FINISHED: " + name);
+//                }).then(r -> {
+//                  System.out.println("==> PROMISE THEN: " + name);
+//                  hcheckResults.put(name, r);
+//                  if (countDown.decrementAndGet() == 0) {
+//                    f.success(hcheckResults);
+//                  }
+//                });
+              }
+            }
           });
         }).then(results -> {
           context.render(new HealthCheckResults(ImmutableSortedMap.<String, HealthCheck.Result>copyOfSorted(hcheckResults)));

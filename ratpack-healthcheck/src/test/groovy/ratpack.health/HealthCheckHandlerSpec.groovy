@@ -9,6 +9,7 @@ import ratpack.http.MediaType
 import ratpack.render.Renderer
 import ratpack.test.embed.EmbeddedApp
 import ratpack.test.http.TestHttpClient
+import spock.lang.IgnoreRest
 import spock.lang.Specification
 
 import java.util.concurrent.CountDownLatch
@@ -49,6 +50,37 @@ class HealthCheckFooUnhealthy2 implements HealthCheck {
 
   Promise<HealthCheck.Result> check(ExecControl execControl) throws Exception {
     throw new Exception("EXCEPTION PROMISE CREATION")
+  }
+}
+
+class HealthCheckParallel implements HealthCheck {
+  private final String name
+  private CountDownLatch waitingFor
+  private CountDownLatch finalized
+  private List<String> output
+
+  HealthCheckParallel(String name, CountDownLatch waitingFor, CountDownLatch finalized, List<String> output) {
+    this.name = name
+    this.waitingFor = waitingFor
+    this.finalized = finalized
+    this.output = output
+  }
+
+  String getName() { return this.name }
+
+  Promise<HealthCheck.Result> check(ExecControl execControl) throws Exception {
+    return execControl.promise { f ->
+      if (waitingFor) {
+        println "WAITING: $name"
+        waitingFor.await()
+      }
+      f.success(HealthCheck.Result.healthy())
+      if (finalized) {
+        println "FINALIZED: $name"
+        output << name
+        finalized.countDown()
+      }
+    }
   }
 }
 
@@ -368,6 +400,46 @@ class HealthCheckHandlerSpec extends Specification {
       assert results.bar.healthy == true
       assert results.baz.healthy == false
       assert results.baz.message == "Unhealthy"
+    }
+  }
+
+  @IgnoreRest
+  def "ordered (by name) health checks run in parallel"() {
+    given:
+    CountDownLatch cdlFoo1 = new CountDownLatch(1)
+    CountDownLatch cdlFoo2 = new CountDownLatch(1)
+    CountDownLatch cdlFoo3 = new CountDownLatch(1)
+    CountDownLatch cdlFoo4 = new CountDownLatch(1)
+    CountDownLatch cdlFoo5 = new CountDownLatch(1)
+    CountDownLatch cdlFoo6 = new CountDownLatch(1)
+    CountDownLatch cdlFoo7 = new CountDownLatch(1)
+    CountDownLatch cdlFoo8 = new CountDownLatch(1)
+    CountDownLatch cdlFoo9 = new CountDownLatch(1)
+    def output = []
+
+    when:
+    EmbeddedApp app = GroovyEmbeddedApp.build {
+
+      handlers {
+        register {
+          add new HealthCheckResultsRenderer()
+          add new HealthCheckParallel("foo1", cdlFoo9, cdlFoo1, output)
+          add new HealthCheckParallel("foo2", cdlFoo8, cdlFoo2, output)
+          add new HealthCheckParallel("foo3", cdlFoo7, cdlFoo3, output)
+          add new HealthCheckParallel("foo4", cdlFoo6, cdlFoo4, output)
+          add new HealthCheckParallel("foo5", cdlFoo5, cdlFoo5, output)
+          add new HealthCheckParallel("foo6", cdlFoo4, cdlFoo6, output)
+          add new HealthCheckParallel("foo7", cdlFoo3, cdlFoo7, output)
+          add new HealthCheckParallel("foo8", cdlFoo2, cdlFoo8, output)
+          add new HealthCheckParallel("foo9", null, cdlFoo9, output)
+        }
+        get("health-checks", new HealthCheckHandler(0))
+      }
+    }
+
+    then:
+    app.test { TestHttpClient httpClient ->
+      def result = httpClient.getText("health-checks")
     }
   }
 }

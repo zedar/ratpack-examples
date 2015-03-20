@@ -296,22 +296,6 @@ public class HealthCheckHandler implements Handler {
                     f.success(hcheckResults);
                   }
                 });
-//                System.out.println("==> EXECUTING PROMISE: " + name);
-//                p.onError(throwable -> {
-//                  System.out.println("==> PROMISE onERROR: " + name);
-//                  hcheckResults.put(name, HealthCheck.Result.unhealthy(throwable));
-//                  if (countDown.decrementAndGet() == 0) {
-//                    System.out.println("==> PROMISE onERROR FINISHED: " + name);
-//                    f.success(hcheckResults);
-//                  }
-//                  System.out.println("==> PROMISE onERROR NOT FINISHED: " + name);
-//                }).then(r -> {
-//                  System.out.println("==> PROMISE THEN: " + name);
-//                  hcheckResults.put(name, r);
-//                  if (countDown.decrementAndGet() == 0) {
-//                    f.success(hcheckResults);
-//                  }
-//                });
               }
             }
           });

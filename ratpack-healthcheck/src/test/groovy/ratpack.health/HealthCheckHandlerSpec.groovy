@@ -438,7 +438,6 @@ class HealthCheckHandlerSpec extends Specification {
     }
   }
 
-  @IgnoreRest
   def "handler with concurrencyLevel=1 run ordered (by name) health checks in sequence"() {
     given:
     def output = []

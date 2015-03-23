@@ -3,6 +3,7 @@ package ratpack.health
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import ratpack.exec.ExecControl
+import ratpack.exec.ExecController
 import ratpack.exec.Promise
 import ratpack.groovy.test.embed.GroovyEmbeddedApp
 import ratpack.http.MediaType
@@ -71,13 +72,11 @@ class HealthCheckParallel implements HealthCheck {
   Promise<HealthCheck.Result> check(ExecControl execControl) throws Exception {
     return execControl.promise { f ->
       if (waitingFor) {
-        println "WAITING: $name"
         waitingFor.await()
       }
+      output << name
       f.success(HealthCheck.Result.healthy())
       if (finalized) {
-        println "FINALIZED: $name"
-        output << name
         finalized.countDown()
       }
     }
@@ -403,35 +402,26 @@ class HealthCheckHandlerSpec extends Specification {
     }
   }
 
-  @IgnoreRest
-  def "ordered (by name) health checks run in parallel"() {
+  def "handler with concurrencyLevel=0 run ordered (by name) health checks in parallel"() {
     given:
-    CountDownLatch cdlFoo1 = new CountDownLatch(1)
-    CountDownLatch cdlFoo2 = new CountDownLatch(1)
-    CountDownLatch cdlFoo3 = new CountDownLatch(1)
-    CountDownLatch cdlFoo4 = new CountDownLatch(1)
-    CountDownLatch cdlFoo5 = new CountDownLatch(1)
-    CountDownLatch cdlFoo6 = new CountDownLatch(1)
-    CountDownLatch cdlFoo7 = new CountDownLatch(1)
-    CountDownLatch cdlFoo8 = new CountDownLatch(1)
-    CountDownLatch cdlFoo9 = new CountDownLatch(1)
     def output = []
+    def countDownLatches = []
+    int eventLoopThreads = 0
 
     when:
     EmbeddedApp app = GroovyEmbeddedApp.build {
-
-      handlers {
+      handlers { ExecController ec ->
         register {
           add new HealthCheckResultsRenderer()
-          add new HealthCheckParallel("foo1", cdlFoo9, cdlFoo1, output)
-          add new HealthCheckParallel("foo2", cdlFoo8, cdlFoo2, output)
-          add new HealthCheckParallel("foo3", cdlFoo7, cdlFoo3, output)
-          add new HealthCheckParallel("foo4", cdlFoo6, cdlFoo4, output)
-          add new HealthCheckParallel("foo5", cdlFoo5, cdlFoo5, output)
-          add new HealthCheckParallel("foo6", cdlFoo4, cdlFoo6, output)
-          add new HealthCheckParallel("foo7", cdlFoo3, cdlFoo7, output)
-          add new HealthCheckParallel("foo8", cdlFoo2, cdlFoo8, output)
-          add new HealthCheckParallel("foo9", null, cdlFoo9, output)
+
+          eventLoopThreads = ec.getNumThreads()
+          for (int i=0; i<eventLoopThreads; i++) {
+            countDownLatches.add(new CountDownLatch(1))
+
+          }
+          for (int i=0; i<eventLoopThreads; i++) {
+            add new HealthCheckParallel("foo${i+1}", i == (eventLoopThreads-1) ? null : countDownLatches[i+1], countDownLatches[i], output)
+          }
         }
         get("health-checks", new HealthCheckHandler(0))
       }
@@ -440,6 +430,110 @@ class HealthCheckHandlerSpec extends Specification {
     then:
     app.test { TestHttpClient httpClient ->
       def result = httpClient.getText("health-checks")
+      def expectedOutput = []
+      for (int i=eventLoopThreads-1; i>=0; i--) {
+        expectedOutput.add("foo${i+1}")
+      }
+      assert output == expectedOutput
+    }
+  }
+
+  @IgnoreRest
+  def "handler with concurrencyLevel=1 run ordered (by name) health checks in sequence"() {
+    given:
+    def output = []
+    int numOfHealthChecks = 8
+
+    when:
+    EmbeddedApp app = GroovyEmbeddedApp.build {
+      handlers {
+        register {
+          add new HealthCheckResultsRenderer()
+          for (int i=0; i<numOfHealthChecks; i++) {
+            add new HealthCheckParallel("foo${i+1}", null, null, output)
+          }
+        }
+        get("health-checks", new HealthCheckHandler(1))
+      }
+    }
+
+    then:
+    app.test { TestHttpClient httpClient ->
+      def result = httpClient.getText("health-checks")
+      def expectedOutput = []
+      for (int i=0; i<numOfHealthChecks; i++) {
+        expectedOutput.add("foo${i+1}")
+      }
+      assert output == expectedOutput
+    }
+  }
+
+  def "handler with currencyLevel=2 run ordered (by name) health checks in sequence of 2 parallel"() {
+    given:
+    def output = []
+    int numOfHealthChecks = 8
+    def countDownLatches = []
+    for (int i=0; i<numOfHealthChecks; i++) {
+      countDownLatches.add(new CountDownLatch(1))
+    }
+
+    when:
+    EmbeddedApp app = GroovyEmbeddedApp.build {
+      handlers {
+        register {
+          add new HealthCheckResultsRenderer()
+
+          for (int i=0; i<numOfHealthChecks; i++) {
+            // second in group is waiting for the first one
+            // pairs run in parallel while groups of two in sequence
+            add new HealthCheckParallel("foo${i+1}", i%2 ?  null : countDownLatches[i+1], countDownLatches[i], output)
+          }
+        }
+        get("health-checks", new HealthCheckHandler(2))
+      }
+    }
+
+    then:
+    app.test{ TestHttpClient httpClient ->
+      def result = httpClient.getText("health-checks")
+      def expectedOutput = ["foo2", "foo1", "foo4", "foo3", "foo6", "foo5", "foo8", "foo7"]
+      assert output == expectedOutput
+    }
+  }
+
+  def "handler with currencyLevel=3 run ordered (by name) health checks in sequence of 3 parallel"() {
+    given:
+    def output = []
+    int numOfHealthChecks = 9
+    def countDownLatches = []
+    for (int i=0; i<numOfHealthChecks; i++) {
+      countDownLatches.add(new CountDownLatch(1))
+    }
+
+    when:
+    EmbeddedApp app = GroovyEmbeddedApp.build {
+      handlers {
+        register {
+          add new HealthCheckResultsRenderer()
+
+          int k = 0
+          for (int i=0; i<numOfHealthChecks; i++) {
+            // third in group is waiting for second and second is waiting for the first one
+            // triples run in parallel while groups of three in sequence
+
+            add new HealthCheckParallel("foo${i+1}", k in [0,1] ? countDownLatches[i+1] : null , countDownLatches[i], output)
+            if (++k == 3) k = 0
+          }
+        }
+        get("health-checks", new HealthCheckHandler(3))
+      }
+    }
+
+    then:
+    app.test{ TestHttpClient httpClient ->
+      def result = httpClient.getText("health-checks")
+      def expectedOutput = ["foo3", "foo2", "foo1", "foo6", "foo5", "foo4", "foo9", "foo8", "foo7"]
+      assert output == expectedOutput
     }
   }
 }

@@ -10,7 +10,6 @@ import ratpack.http.MediaType
 import ratpack.render.Renderer
 import ratpack.test.embed.EmbeddedApp
 import ratpack.test.http.TestHttpClient
-import spock.lang.IgnoreRest
 import spock.lang.Specification
 
 import java.util.concurrent.CountDownLatch
@@ -429,7 +428,7 @@ class HealthCheckHandlerSpec extends Specification {
 
     then:
     app.test { TestHttpClient httpClient ->
-      def result = httpClient.getText("health-checks")
+      httpClient.getText("health-checks")
       def expectedOutput = []
       for (int i=eventLoopThreads-1; i>=0; i--) {
         expectedOutput.add("foo${i+1}")
@@ -458,7 +457,7 @@ class HealthCheckHandlerSpec extends Specification {
 
     then:
     app.test { TestHttpClient httpClient ->
-      def result = httpClient.getText("health-checks")
+      httpClient.getText("health-checks")
       def expectedOutput = []
       for (int i=0; i<numOfHealthChecks; i++) {
         expectedOutput.add("foo${i+1}")
@@ -494,7 +493,7 @@ class HealthCheckHandlerSpec extends Specification {
 
     then:
     app.test{ TestHttpClient httpClient ->
-      def result = httpClient.getText("health-checks")
+      httpClient.getText("health-checks")
       def expectedOutput = ["foo2", "foo1", "foo4", "foo3", "foo6", "foo5", "foo8", "foo7"]
       assert output == expectedOutput
     }
@@ -530,7 +529,7 @@ class HealthCheckHandlerSpec extends Specification {
 
     then:
     app.test{ TestHttpClient httpClient ->
-      def result = httpClient.getText("health-checks")
+      httpClient.getText("health-checks")
       def expectedOutput = ["foo3", "foo2", "foo1", "foo6", "foo5", "foo4", "foo9", "foo8", "foo7"]
       assert output == expectedOutput
     }

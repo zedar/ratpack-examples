@@ -1,10 +1,6 @@
 buildscript {
   repositories {
     jcenter()
-    // local ratpack build
-    //maven {
-    //  url "file:///Users/zedar/dev/ratpackdev/ratpack-fork/build/localrepo"
-    //}
   }
   dependencies {
     classpath "io.ratpack:ratpack-gradle:0.9.15"
@@ -18,12 +14,11 @@ apply plugin: "idea"
 
 repositories {
   jcenter()
-//  maven { url 'http://clinker.netty.io/nexus/content/repositories/snapshots' }
-  // local ratpack build
-  //maven { url "file:///Users/zedar/dev/ratpackdev/ratpack-fork/build/localrepo" }
 }
 
 dependencies {
+  compile ratpack.dependency("jackson")
+
   // SpringLoaded enables runtime hot reloading.
   // It is not part of the app runtime and is not shipped in the distribution.
   // IMPORTANT: commented out because of lack of compatibility with Java8 lambdas

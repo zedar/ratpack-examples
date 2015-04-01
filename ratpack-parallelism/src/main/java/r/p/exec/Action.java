@@ -3,23 +3,24 @@ package r.p.exec;
 import ratpack.api.Nullable;
 import ratpack.exec.ExecControl;
 import ratpack.exec.Promise;
+import ratpack.func.Function;
 import ratpack.health.HealthCheck;
 
-public class Action {
-  private final String name;
+public interface Action {
+  String getName();
 
-  public Action(String name) {
-    this.name = name;
-  }
+  Promise<Result> exec(ExecControl execControl) throws Exception;
 
-  public String getName() { return name; }
+  public static Action of(String name, Function<? super ExecControl, ? extends Promise<Result>> func) {
+    return new Action() {
+      @Override
+      public String getName() { return name; }
 
-  public Promise<Result> exec(ExecControl execControl) throws Exception {
-    return execControl.promise(fulfiller -> {
-      // TODO:
-      Thread.sleep(3000);
-      fulfiller.success(Result.NO_ERROR);
-    });
+      @Override
+      public Promise<Result> exec(ExecControl execControl) throws Exception {
+        return func.apply(execControl);
+      }
+    };
   }
 
   public static class Result {

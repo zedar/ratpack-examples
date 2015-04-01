@@ -37,5 +37,9 @@ public class Action {
 
     @Nullable
     public String getDescr() { return descr; }
+
+    public static Result error(String code, String descr) { return new Result(code, descr); }
+
+    public static Result error(Throwable ex) { return new Result("100", ex.getMessage()); }
   }
 }

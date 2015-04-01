@@ -1,12 +1,18 @@
 package r.p.handling;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import r.p.exec.Action;
+import ratpack.exec.ExecControl;
+import ratpack.exec.Promise;
 import ratpack.handling.Context;
 import ratpack.handling.Handler;
 
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class ExecHandler implements Handler {
   @Override
@@ -18,12 +24,46 @@ public class ExecHandler implements Handler {
 
     try {
       Iterable<Action> actions = new LinkedList<>(Arrays.asList(new Action("foo"), new Action("bar"), new Action("buzz")));
-
-      Iterator<Action> iterator = actions.iterator();
-
+      ctx.render(execute(ctx, actions));
     } catch (Exception ex) {
       ctx.error(ex);
     }
   }
 
+  private Promise<ExecResults> execute(ExecControl execControl, Iterable<? extends Action> actions) {
+    Iterator<? extends Action> iterator = actions.iterator();
+    if (!iterator.hasNext()) {
+      return execControl.promiseOf(new ExecResults(ImmutableMap.<String, Action.Result>of()));
+    }
+
+    return execControl.<Map<String, Action.Result>>promise(f -> {
+      AtomicInteger counter = new AtomicInteger();
+      Map<String, Action.Result> results = Maps.newConcurrentMap();
+      while (iterator.hasNext()) {
+        counter.incrementAndGet();
+        Action action = iterator.next();
+        execControl.exec().start(execution ->
+          execute(execution, action)
+            .defer(r -> {})
+            .wiretap(r -> {})
+            .then(r -> {
+              results.put(action.getName(), r);
+              if (counter.decrementAndGet() == 0 && !iterator.hasNext()) {
+                f.success(results);
+              }
+            })
+        );
+      }
+    })
+      .map(ImmutableMap::copyOf)
+      .map(ExecResults::new);
+  }
+
+  private Promise<Action.Result> execute(ExecControl execControl, Action action) {
+    try {
+      return action.exec(execControl).mapError(Action.Result::error);
+    } catch (Exception ex) {
+      return execControl.promiseOf(Action.Result.error(ex));
+    }
+  }
 }

@@ -2,12 +2,12 @@ buildscript {
   repositories {
     jcenter()
     // local ratpack build
-    maven {
-      url "file:///Users/zedar/dev/ratpackdev/ratpack-fork/build/localrepo"
-    }
+    //maven {
+    //  url "file:///Users/zedar/dev/ratpackdev/ratpack-fork/build/localrepo"
+    //}
   }
   dependencies {
-    classpath "io.ratpack:ratpack-gradle:0.9.15-SNAPSHOT"
+    classpath "io.ratpack:ratpack-gradle:0.9.15"
     classpath "com.github.jengelman.gradle.plugins:shadow:1.2.1"
   }
 }
@@ -20,7 +20,7 @@ repositories {
   jcenter()
 //  maven { url 'http://clinker.netty.io/nexus/content/repositories/snapshots' }
   // local ratpack build
-  maven { url "file:///Users/zedar/dev/ratpackdev/ratpack-fork/build/localrepo" }
+  //maven { url "file:///Users/zedar/dev/ratpackdev/ratpack-fork/build/localrepo" }
 }
 
 dependencies {

@@ -20,4 +20,6 @@ The ```X-Response-Time``` header provides handler execution time.
 
 > Ratpack executes actions as promises on an IO event loop that is by default limited to ```Runtime.getRuntime().availableProcessors() * 2```
 number of threads. Promises executed in parallel that exceed event loop's number of thread are waiting in event loop.
+All blocking operations should be called as ```execControl.blocking()```, that are performed on seperate thread pool and do not block
+main event loop.
 

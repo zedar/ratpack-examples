@@ -3,7 +3,7 @@ package r.p.handling;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import r.p.exec.Action;
-import r.p.exec.internal.LongAction;
+import r.p.exec.internal.LongBlockingIOAction;
 import ratpack.exec.ExecControl;
 import ratpack.exec.Promise;
 import ratpack.handling.Context;
@@ -26,19 +26,19 @@ public class ExecHandler implements Handler {
 
     try {
       Iterable<Action> actions = new LinkedList<>(Arrays.asList(
-        new LongAction("foo"),
-        new LongAction("bar"),
+        new LongBlockingIOAction("foo"),
+        new LongBlockingIOAction("bar"),
         Action.of("buzz", execControl -> execControl
           .promise(fulfiller -> {
             throw new IOException("CONTROLLED EXCEPTION");
           })),
-        new LongAction("quzz"),
-        new LongAction("foo_1"),
-        new LongAction("foo_2"),
-        new LongAction("foo_3"),
-        new LongAction("foo_4"),
-        new LongAction("foo_5"),
-        new LongAction("foo_6")
+        new LongBlockingIOAction("quzz"),
+        new LongBlockingIOAction("foo_1"),
+        new LongBlockingIOAction("foo_2"),
+        new LongBlockingIOAction("foo_3"),
+        new LongBlockingIOAction("foo_4"),
+        new LongBlockingIOAction("foo_5"),
+        new LongBlockingIOAction("foo_6")
       ));
       ctx.render(execute(ctx, actions));
     } catch (Exception ex) {

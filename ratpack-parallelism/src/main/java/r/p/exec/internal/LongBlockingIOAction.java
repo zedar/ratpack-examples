@@ -23,12 +23,12 @@ public class LongBlockingIOAction implements Action {
   public Promise<Result> exec(ExecControl execControl) throws Exception {
     return execControl.blocking(() -> {
       Thread.sleep(3000);
-      return Result.NO_ERROR;
+      return Action.Result.success();
     });
 //    promise(fulfiller -> {
 //      // TODO:
 //      Thread.sleep(3000);
-//      fulfiller.success(Result.NO_ERROR);
+//      fulfiller.success(Action.Result.success());
 //    });
   }
 }

@@ -9,10 +9,11 @@ Ratpack and parallelism
 
 ### Fan out and in
 
-Execute actions in parallel (independently), collect the results and render them as *JSON* output.
+Execute actions in parallel (independently), collect the results, apply post processing action and render result as *JSON* output.
+
 
     $ ./gradlew run
-    $ curl -v -X GET http://localhost:5050/fanout
+    $ curl -v -X GET http://localhost:5050/fanoutfanin
 
 The ```X-Response-Time``` header provides handler execution time.
 
@@ -20,6 +21,6 @@ The ```X-Response-Time``` header provides handler execution time.
 
 > Ratpack executes actions as promises on an IO event loop that is by default limited to ```Runtime.getRuntime().availableProcessors() * 2```
 number of threads. Promises executed in parallel that exceed event loop's number of thread are waiting in event loop.
-All blocking operations should be called as ```execControl.blocking()```, that are performed on seperate thread pool and do not block
+All blocking operations should be called as ```execControl.blocking()```, that are performed on separate thread pool and do not block
 main event loop.
 

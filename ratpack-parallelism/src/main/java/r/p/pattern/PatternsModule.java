@@ -38,6 +38,7 @@ public class PatternsModule extends ConfigurableModule<PatternsModule.Config> {
   protected void configure() {
     bind(FanOutFanIn.class).in(Singleton.class);
     bind(Parallel.class).in(Singleton.class);
+    bind(InvokeAndRetry.class).in(Singleton.class);
   }
 
   /**

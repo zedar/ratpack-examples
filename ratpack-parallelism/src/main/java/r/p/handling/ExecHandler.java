@@ -20,8 +20,10 @@ import com.google.common.reflect.TypeToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import r.p.handling.internal.FanOutFanInHandler;
+import r.p.handling.internal.InvokeAndRetryHandler;
 import r.p.handling.internal.ParallelHandler;
 import r.p.pattern.FanOutFanIn;
+import r.p.pattern.InvokeAndRetry;
 import r.p.pattern.Parallel;
 import r.p.pattern.Pattern;
 import ratpack.handling.Context;
@@ -42,6 +44,7 @@ public class ExecHandler implements Handler {
 
   private final Handler fanOutFanInHandler = new FanOutFanInHandler();
   private final Handler parallelHandler = new ParallelHandler();
+  private final Handler invokeAndRetryHandler = new InvokeAndRetryHandler();
 
   /**
    * The default path token name that indicates the pattern to be used for actions execution.
@@ -75,6 +78,8 @@ public class ExecHandler implements Handler {
       ctx.insert(fanOutFanInHandler);
     } else if (Parallel.PATTERN_NAME.equals(patternName)) {
       ctx.insert(parallelHandler);
+    } else if (InvokeAndRetry.PATTERN_NAME.equals(patternName)) {
+      ctx.insert(invokeAndRetryHandler);
     } else {
       ctx.next();
     }

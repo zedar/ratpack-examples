@@ -16,18 +16,13 @@
 
 package r.p.pattern;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import r.p.exec.Action;
 import r.p.exec.ActionResults;
 import r.p.exec.TypedAction;
 import ratpack.exec.ExecControl;
 import ratpack.exec.Promise;
 
-import java.util.Iterator;
-import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Lets actions to execute in parallel and once all are finished process results with post processing action.

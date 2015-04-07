@@ -20,11 +20,13 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import r.p.exec.Action;
 import r.p.exec.ActionResults;
+import r.p.exec.TypedAction;
 import ratpack.exec.ExecControl;
 import ratpack.exec.Promise;
 
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -38,10 +40,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @see r.p.exec.TypedAction
  * @see r.p.pattern.PatternsModule
  */
-public class FanOutFanIn implements Pattern {
+public class FanOutFanIn extends Parallel {
 
   /**
-   * The name of the pattern that indicates individual pattern to execute.
+   * The name of the pattern that indicates pattern to execute in handler.
    *
    * Value: {@value}
    */
@@ -56,55 +58,19 @@ public class FanOutFanIn implements Pattern {
   public String getName() { return PATTERN_NAME; }
 
   /**
-   * Executes {@code actions} in parallel.
+   * Executes actions and applies post processing action.
    * <p>
-   * Result of each {@code action} execution is added to {@code ActionResults} as immutable map.
-   * <p>
-   * if {@code action} throws an exception it is equivalent to error result.
+   * This pattern requires execution of post action.
    *
    * @param execControl an execution control
    * @param actions a collection of actions to execute
-   * @return a promise for the results
-   * @throws Exception
+   * @param postAction an action to be applied for all actions results
+   * @return a promise for results
+   * @throws Exception any
    */
   @Override
-  public Promise<ActionResults> apply(ExecControl execControl, Iterable<? extends Action> actions) throws Exception {
-    Iterator<? extends Action> iterator = actions.iterator();
-    if (!iterator.hasNext()) {
-      return execControl.promiseOf(new ActionResults(ImmutableMap.<String, Action.Result>of()));
-    }
-
-    return execControl.<Map<String, Action.Result>>promise(fulfiller -> {
-      AtomicInteger counter = new AtomicInteger();
-      Map<String, Action.Result> results = Maps.newConcurrentMap();
-      while (iterator.hasNext()) {
-        counter.incrementAndGet();
-        Action action = iterator.next();
-        execControl.exec().start(execution ->
-          apply(execution, action)
-            .defer(runnable -> {
-              runnable.run();
-            })
-            .wiretap(result -> {
-
-            })
-            .then(result -> {
-              results.put(action.getName(), result);
-              if (counter.decrementAndGet() == 0 && !iterator.hasNext()) {
-                fulfiller.success(results);
-              }
-            })
-        );
-      }
-    }).map(ImmutableMap::copyOf)
-      .map(ActionResults::new);
-  }
-
-  private Promise<Action.Result> apply(ExecControl execControl, Action action) {
-    try {
-      return action.exec(execControl).mapError(Action.Result::error);
-    } catch (Exception ex) {
-      return execControl.promiseOf(Action.Result.error(ex));
-    }
+  public Promise<ActionResults> apply(ExecControl execControl, Iterable<? extends Action> actions, TypedAction<ActionResults, ActionResults> postAction) throws Exception {
+    Objects.requireNonNull(postAction, "Action for Fan-in is required");
+    return super.apply(execControl, actions, postAction);
   }
 }

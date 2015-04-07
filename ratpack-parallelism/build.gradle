@@ -11,6 +11,8 @@ buildscript {
 apply plugin: "io.ratpack.ratpack-java"
 apply plugin: "com.github.johnrengelman.shadow"
 apply plugin: "idea"
+// required by spock testing framework
+apply plugin: "groovy"
 
 repositories {
   jcenter()
@@ -28,7 +30,9 @@ dependencies {
   // See here for a non blocking appender http://logging.apache.org/log4j/2.x/manual/async.html
   runtime 'org.slf4j:slf4j-simple:1.7.10'
 
+  // spock and groovy-test are required for testing with spock framework
   testCompile "org.spockframework:spock-core:0.7-groovy-2.0"
+  testCompile ratpack.dependency("groovy-test")
 }
 
 mainClassName = "r.p.Main"

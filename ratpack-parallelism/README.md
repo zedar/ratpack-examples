@@ -7,7 +7,16 @@ Ratpack and parallelism
 
 ## Executions patterns
 
-### Fan out and in
+### Parallel
+Execute actions in parallel (without informing each other), collect the results and render the results as *JSON* string.
+Blocking actions should be called as ```execControl.blocking()```, that is performed on separate thread pool and do not
+
+    $ ./gradlew run
+    $ curl -v -X GET http://localhost:5050/parallel
+
+The ```X-Response-Time``` header provides handler execution time.
+
+### Fan-out and fan-in
 
 Execute actions in parallel (independently), collect the results, apply post processing action and render result as *JSON* output.
 
@@ -17,7 +26,7 @@ Execute actions in parallel (independently), collect the results, apply post pro
 
 The ```X-Response-Time``` header provides handler execution time.
 
-**Note**
+**Note:**
 
 > Ratpack executes actions as promises on an IO event loop that is by default limited to ```Runtime.getRuntime().availableProcessors() * 2```
 number of threads. Promises executed in parallel that exceed event loop's number of thread are waiting in event loop.

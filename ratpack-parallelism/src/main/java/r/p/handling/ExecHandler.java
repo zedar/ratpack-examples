@@ -16,21 +16,16 @@
 
 package r.p.handling;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import com.google.common.reflect.TypeToken;
-import r.p.exec.Action;
-import r.p.exec.ActionResults;
-import r.p.exec.TypedAction;
-import r.p.exec.internal.LongBlockingIOAction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import r.p.handling.internal.FanOutFanInHandler;
+import r.p.handling.internal.ParallelHandler;
+import r.p.pattern.FanOutFanIn;
+import r.p.pattern.Parallel;
 import r.p.pattern.Pattern;
-import ratpack.exec.ExecControl;
-import ratpack.exec.Promise;
 import ratpack.handling.Context;
 import ratpack.handling.Handler;
-
-import java.io.IOException;
-import java.util.*;
 
 /**
  * A handler that executes {@link r.p.exec.Action actions} or {@link r.p.exec.TypedAction typed actions} and renders their results.
@@ -42,6 +37,11 @@ import java.util.*;
  * @see r.p.pattern.Pattern
  */
 public class ExecHandler implements Handler {
+
+  private static final Logger log = LoggerFactory.getLogger(ExecHandler.class);
+
+  private final Handler fanOutFanInHandler = new FanOutFanInHandler();
+  private final Handler parallelHandler = new ParallelHandler();
 
   /**
    * The default path token name that indicates the pattern to be used for actions execution.
@@ -71,51 +71,12 @@ public class ExecHandler implements Handler {
       return;
     }
 
-    try {
-      Iterable<Action> actions = new LinkedList<>(Arrays.asList(
-        new LongBlockingIOAction("foo"),
-        new LongBlockingIOAction("bar"),
-        Action.of("buzz", execControl -> execControl
-          .promise(fulfiller -> {
-            throw new IOException("CONTROLLED EXCEPTION");
-          })),
-        new LongBlockingIOAction("quzz"),
-        new LongBlockingIOAction("foo_1"),
-        new LongBlockingIOAction("foo_2"),
-        new LongBlockingIOAction("foo_3"),
-        new LongBlockingIOAction("foo_4"),
-        new LongBlockingIOAction("foo_5"),
-        new LongBlockingIOAction("foo_6")
-      ));
-      TypedAction<ActionResults, ActionResults> mergeResults = TypedAction.of("merge", (execControl, actionResults) ->
-        execControl.promise(fulfiller -> {
-          final int[] counters = {0, 0};
-          actionResults.getResults().forEach((name, result) -> {
-            if (result.getCode() != null && "0".equals(result.getCode())) {
-              counters[0]++;
-            } else if (result.getCode() != null && !"0".equals(result.getCode())) {
-              counters[1]++;
-            }
-          });
-          StringBuilder strB = new StringBuilder();
-          strB.append("Succeeded: ").append(counters[0]).append(" Failed: ").append(counters[1]);
-          fulfiller.success(new ActionResults(ImmutableMap.<String, Action.Result>of("COUNTED", Action.Result.error("0", strB.toString()))));
-        })
-      );
-      ctx.render(execute(ctx, patternName, actions, mergeResults));
-    } catch (Exception ex) {
-      ctx.error(ex);
-    }
-  }
-
-  private Promise<ActionResults> execute(Context ctx, String patternName, Iterable<? extends Action> actions, TypedAction<ActionResults, ActionResults> postAction) throws Exception {
-    Optional<Pattern> first = ctx.first(PATTERN_TYPE_TOKEN, pattern -> pattern.getName().equals(patternName) ? pattern : null);
-    if (!first.isPresent()) {
-      return ctx.promiseOf(new ActionResults(ImmutableMap.<String, Action.Result>of("ERROR", Action.Result.error("404", "No such pattern exception"))));
+    if (FanOutFanIn.PATTERN_NAME.equals(patternName)) {
+      ctx.insert(fanOutFanInHandler);
+    } else if (Parallel.PATTERN_NAME.equals(patternName)) {
+      ctx.insert(parallelHandler);
     } else {
-      return first.get().apply(ctx, actions, postAction);
+      ctx.next();
     }
   }
-
-
 }

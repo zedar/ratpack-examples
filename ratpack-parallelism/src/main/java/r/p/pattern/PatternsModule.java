@@ -37,6 +37,7 @@ public class PatternsModule extends ConfigurableModule<PatternsModule.Config> {
   @Override
   protected void configure() {
     bind(FanOutFanIn.class).in(Singleton.class);
+    bind(Parallel.class).in(Singleton.class);
   }
 
   /**

@@ -19,6 +19,33 @@ Example execution:
 
 The ```X-Response-Time``` header provides handler execution time.
 
+Example implementation creates list of actions, some blocking, some throwing exception and execute them in parallel.
+Results of every action execution is returned as renderable (to JSON) ```ActionResults```.
+
+````java
+    public void handle(Context ctx) throws Exception {
+      try {
+        Iterable<Action> actions = new LinkedList<>(Arrays.asList(
+          new LongBlockingIOAction("foo"),
+          new LongBlockingIOAction("bar"),
+          Action.of("buzz", execControl -> execControl
+            .promise(fulfiller -> {
+              throw new IOException("CONTROLLED EXCEPTION");
+            })),
+          new LongBlockingIOAction("quzz"),
+          new LongBlockingIOAction("foo_1"),
+          new LongBlockingIOAction("foo_2"),
+          new LongBlockingIOAction("foo_3")
+        ));
+
+        Parallel pattern = ctx.get(PATTERN_TYPE_TOKEN);
+        ctx.render(pattern.apply(ctx, ctx, Parallel.Params.of(actions)));
+      } catch (Exception ex) {
+        ctx.clientError(404);
+      }
+    }
+````
+
 ### [Fan-out/fan-in](https://github.com/zedar/ratpack-examples/blob/master/ratpack-integrationpatterns/src/main/java/r/p/pattern/FanOutFanIn.java)
 
 Execute actions in parallel (independently), collect the results, apply post processing action and render result as *JSON* output.
@@ -36,6 +63,46 @@ The ```X-Response-Time``` header provides handler execution time.
 number of threads. Promises executed in parallel that exceed event loop's number of thread are waiting in event loop.
 All blocking operations should be called as ```execControl.blocking()```, that are performed on separate thread pool and do not block
 main event loop.
+
+Example implementation creates list of actions, some blocking, some throwing exception. Additionally ```TypedAction```
+is create in order to merge results of actions. In fact ```mergeResults``` action calculates successful and failed actions.
+
+    public void handle(Context ctx) throws Exception {
+      try {
+        Iterable<Action> actions = new LinkedList<>(Arrays.asList(
+          new LongBlockingIOAction("foo"),
+          new LongBlockingIOAction("bar"),
+          Action.of("buzz", execControl -> execControl
+            .promise(fulfiller -> {
+              throw new IOException("CONTROLLED EXCEPTION");
+            })),
+          new LongBlockingIOAction("quzz"),
+          new LongBlockingIOAction("foo_1"),
+          new LongBlockingIOAction("foo_2"),
+          new LongBlockingIOAction("foo_3")
+        ));
+        TypedAction<ActionResults, ActionResults> mergeResults = TypedAction.of("merge", (execControl, actionResults) ->
+            execControl.promise(fulfiller -> {
+              final int[] counters = {0, 0};
+              actionResults.getResults().forEach((name, result) -> {
+                if (result.getCode() != null && "0".equals(result.getCode())) {
+                  counters[0]++;
+                } else if (result.getCode() != null && !"0".equals(result.getCode())) {
+                  counters[1]++;
+                }
+              });
+              StringBuilder strB = new StringBuilder();
+              strB.append("Succeeded: ").append(counters[0]).append(" Failed: ").append(counters[1]);
+              fulfiller.success(new ActionResults(ImmutableMap.<String, Action.Result>of("COUNTED", Action.Result.error("0", strB.toString()))));
+            })
+        );
+
+        FanOutFanIn pattern = ctx.get(PATTERN_TYPE_TOKEN);
+        ctx.render(pattern.apply(ctx, ctx, FanOutFanIn.Params.of(actions, mergeResults)));
+      } catch (Exception ex) {
+        ctx.clientError(404);
+      }
+    }
 
 ### [Invoke with Retry](https://github.com/zedar/ratpack-examples/blob/master/ratpack-integrationpatterns/src/main/java/r/p/pattern/InvokeWithRetry.java)
 Execute action and if it fails (thrown exception) retry it number of times.
@@ -59,6 +126,26 @@ Default retry count can be overridden as parameter to pattern's ```apply``` meth
 
     pattern.apply(ctx, ctx, InvokeAndRetry.Params.of(action, Integer.valueOf(5)))
 
+Example implementation creates one action and declares **5** retries in case of failure.
+
+    public void handle(Context ctx) throws Exception {
+      try {
+        AtomicInteger execCounter = new AtomicInteger(0);
+        Action action = Action.of("foo", execControl -> execControl
+          .promise( fulfiller -> {
+            if (execCounter.incrementAndGet() <= 10) {
+              throw new  IOException("FAILED EXECUTION");
+            }
+            fulfiller.success(Action.Result.success());
+          })
+        );
+
+        InvokeWithRetry pattern = ctx.get(PATTERN_TYPE_TOKEN);
+        ctx.render(pattern.apply(ctx, ctx, InvokeWithRetry.Params.of(action, Integer.valueOf(5))));
+      } catch (Exception ex) {
+        ctx.clientError(404);
+      }
+    }
 #### Retries executed asynchronously
 Retries can be executed asynchronously. It means that action is executed and if fails all subsequent retries are executed
 in separated execution. Result of first action execution is returned to the caller while retries are executed asynchronously.

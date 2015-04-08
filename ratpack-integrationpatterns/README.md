@@ -1,11 +1,11 @@
-Ratpack and parallelism
+Integration patterns implemented with *Ratpack Promises*
 -----------------------------
 
 ## Requirements:
 
 * [ratpack](http://ratpack.io) version 0.9.15
 
-## Executions patterns
+## Integration Patterns
 
 ### Parallel
 Execute actions in parallel (without informing each other), collect the results and render the results as *JSON* string.

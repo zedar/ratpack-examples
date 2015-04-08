@@ -87,7 +87,7 @@ In order to pass more than one query parameter to *curl* command put quotes arou
     $ curl -v -X GET "http://localhost:5050/api/invokewithretry?mode=async&retrymode=async"
 
 Caller can get immediate response with information that execution started in background.
-The following code from [InvokeWithRetryHandler]() demonstrates how to implement such asynchronous execution:
+The following code from [InvokeWithRetryHandler](https://github.com/zedar/ratpack-examples/blob/master/ratpack-parallelism/src/main/java/r/p/handling/internal/InvokeWithRetryHandler.java#L67) demonstrates how to implement such asynchronous execution:
 
     InvokeWithRetry pattern = ctx.get(PATTERN_TYPE_TOKEN);
     // 1: start new execution

@@ -7,7 +7,7 @@ Integration patterns implemented with *Ratpack Promises*
 
 ## Integration Patterns
 
-### Parallel
+### [Parallel](https://github.com/zedar/ratpack-examples/blob/master/ratpack-integrationpatterns/src/main/java/r/p/pattern/Parallel.java)
 Execute actions in parallel (without informing each other), collect the results and render the results as *JSON* string.
 Blocking actions should be called as ```execControl.blocking()```, that is performed on separate thread pool and do not
 block main event loop.
@@ -19,7 +19,7 @@ Example execution:
 
 The ```X-Response-Time``` header provides handler execution time.
 
-### Fan-out and fan-in
+### [Fan-out/fan-in](https://github.com/zedar/ratpack-examples/blob/master/ratpack-integrationpatterns/src/main/java/r/p/pattern/FanOutFanIn.java)
 
 Execute actions in parallel (independently), collect the results, apply post processing action and render result as *JSON* output.
 
@@ -37,7 +37,7 @@ number of threads. Promises executed in parallel that exceed event loop's number
 All blocking operations should be called as ```execControl.blocking()```, that are performed on separate thread pool and do not block
 main event loop.
 
-### Invoke with Retry
+### [Invoke with Retry](https://github.com/zedar/ratpack-examples/blob/master/ratpack-integrationpatterns/src/main/java/r/p/pattern/InvokeWithRetry.java)
 Execute action and if it fails (thrown exception) retry it number of times.
 
 Example execution
@@ -72,7 +72,7 @@ Asynchronous retry mode can be declared as ```asyncRetry``` parameter of ```Invo
 
     pattern.apply(ctx, ctx, InvokeAndRetry.Params.of(action, Integer.valueOf(5), true /*asyncRetry*/))
 
-### Async Invoke with Retry
+### [Async Invoke with Retry](https://github.com/zedar/ratpack-examples/blob/master/ratpack-integrationpatterns/src/main/java/r/p/handling/internal/InvokeWithRetryHandler.java#L67)
 Thanks to [ratpack](http://ratpack.io) action can be executed completely asynchronously, in background.
 
 Example execution:

@@ -33,8 +33,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Lets action to execute and in case of failure retry given number of times.
+ * <p>
+ * Retry can be done synchronously, while still non blocking or asynchronously.
+ * <p>
+ * Asynchronous retry means, that action is executed and if fails, all subsequent retries are executed in separate execution.
+ * Result is immediately returned to the caller.
+ * Asynchronous retry usually requires correlation id but this should be implemented by custom actions.
  */
-public class InvokeAndRetry implements Pattern<InvokeAndRetry.Params, ActionResults> {
+public class InvokeWithRetry implements Pattern<InvokeWithRetry.Params, ActionResults> {
 
   /**
    * Parameters necessary for pattern execution.
@@ -44,10 +50,12 @@ public class InvokeAndRetry implements Pattern<InvokeAndRetry.Params, ActionResu
   public static class Params {
     private final Action action;
     private final Integer retryCount;
+    private final boolean asyncRetry;
 
-    private Params(Action action, Integer retryCount) {
+    private Params(Action action, Integer retryCount, boolean asyncRetry) {
       this.action = action;
       this.retryCount = retryCount;
+      this.asyncRetry = asyncRetry;
     }
 
     /**
@@ -72,18 +80,37 @@ public class InvokeAndRetry implements Pattern<InvokeAndRetry.Params, ActionResu
     }
 
     /**
-     * Creates pattern parameters
+     * Are action retries executed synchronously or asynchronously?
+     *
+     * @return {@code true} if retries are executed asynchronously.
+     */
+    public boolean isAsyncRetry() { return asyncRetry; }
+
+    /**
+     * Creates pattern parameters. Retries are executed synchronously, while still they are non-blocking.
      *
      * @param action an action to execute
-     * @param retryCount a number of retries in case of failure
-     * @return a structure of pattern parameters
+     * @param retryCount the number of retries in case of failure
+     * @return the structure of pattern parameters
      */
-    public static Params of(final Action action, final Integer retryCount) {
-      return new Params(action, retryCount);
+    public static Params of(final Action action, Integer retryCount) {
+      return new Params(action, retryCount, false);
+    }
+
+    /**
+     * Creates pattern parameters.
+     *
+     * @param action an action to execute
+     * @param retryCount the number of retries in case of failure
+     * @param asyncRetry execute retries synchronously or asynchronously
+     * @return the structure of pattern parameters
+     */
+    public static Params of(final Action action, Integer retryCount, boolean asyncRetry) {
+      return new Params(action, retryCount, asyncRetry);
     }
   }
 
-  private static final Logger log = LoggerFactory.getLogger(InvokeAndRetry.class);
+  private static final Logger log = LoggerFactory.getLogger(InvokeWithRetry.class);
 
   private final int defaultRetryCount;
 
@@ -92,14 +119,14 @@ public class InvokeAndRetry implements Pattern<InvokeAndRetry.Params, ActionResu
    *
    * Value: {@value}
    */
-  public static final String PATTERN_NAME = "invokeandretry";
+  public static final String PATTERN_NAME = "invokewithretry";
 
   /**
    * Constructor
    *
    * @param defaultRetryCount the default retry count for the failed action. Can be overridden on {@code apply} method level.
    */
-  public InvokeAndRetry(int defaultRetryCount) {
+  public InvokeWithRetry(int defaultRetryCount) {
     this.defaultRetryCount = defaultRetryCount;
   }
 
@@ -115,7 +142,7 @@ public class InvokeAndRetry implements Pattern<InvokeAndRetry.Params, ActionResu
    * Executes {@code action} and if it fails retries its execution given number of times.
    * <p>
    * Default retry could be set as {@link r.p.pattern.PatternsModule.Config#defaultRetryCount} but could be overridden as
-   * {@link r.p.pattern.InvokeAndRetry.Params#retryCount}.
+   * {@link InvokeWithRetry.Params#retryCount}.
    *
    * @param execControl an execution control
    * @param registry the server registry
@@ -125,24 +152,54 @@ public class InvokeAndRetry implements Pattern<InvokeAndRetry.Params, ActionResu
    */
   @Override
   public Promise<ActionResults> apply(ExecControl execControl, Registry registry, Params params) throws Exception {
-    return apply(execControl, params.getAction(), params.getRetryCount());
-  }
-
-  private Promise<ActionResults> apply(ExecControl execControl, Action action, Integer retryCount) throws Exception {
-    if (action == null) {
+    if (params.getAction() == null) {
       return execControl.promiseOf(new ActionResults(ImmutableMap.<String, Action.Result>of()));
     }
+    int retryCount = params.getRetryCount() != null ? params.getRetryCount().intValue() : defaultRetryCount;
+    if (params.isAsyncRetry()) {
+      return applyAsync(execControl, params.getAction(), retryCount);
+    } else {
+      return apply(execControl, params.getAction(), retryCount);
+    }
+  }
 
+  private Promise<ActionResults> apply(ExecControl execControl, Action action, int retryCount) throws Exception {
     return execControl.<Map<String, Action.Result>>promise( fulfiller -> {
-      AtomicInteger repeatCounter = new AtomicInteger(retryCount != null ? retryCount.intValue() : defaultRetryCount);
+      AtomicInteger repeatCounter = new AtomicInteger(retryCount + 1);
       Map<String, Action.Result> results = Maps.newConcurrentMap();
-      execAction(execControl, fulfiller, action, results, repeatCounter);
+      applyWithRetry(execControl, fulfiller, action, results, repeatCounter);
     })
       .map(ImmutableMap::copyOf)
       .map(ActionResults::new);
   }
 
-  private void execAction(ExecControl execControl, Fulfiller<Map<String, Action.Result>> fulfiller, Action action, Map<String, Action.Result> results, AtomicInteger repeatCounter) {
+  private Promise<ActionResults> applyAsync(ExecControl execControl, Action action, int retryCount) throws Exception {
+    return execControl.<Map<String, Action.Result>>promise( fulfiller -> {
+      AtomicInteger repeatCounter = new AtomicInteger(1);
+      Map<String, Action.Result> results = Maps.newConcurrentMap();
+      applyWithRetry(execControl, fulfiller, action, results, repeatCounter);
+    })
+      .map(ImmutableMap::copyOf)
+      .map(ActionResults::new)
+      .wiretap( result -> {
+        log.debug("ENTERED ASYNC RETRY");
+        ActionResults actionResults = result.getValue();
+        Action.Result actionResult = actionResults.getResults().get(action.getName());
+        log.debug("ASYNC RETRY name: {}, error: {}", action.getName(), actionResult.getCode());
+        if (actionResult != null && !"0".equals(actionResult.getCode())) {
+          // execute retries asynchronously
+          apply(execControl, action, retryCount)
+            .defer(runnable -> {
+              runnable.run();
+            })
+            .then(retryActionResults -> {
+              // TODO: add logging and some special callback
+            });
+        }
+      });
+  }
+
+  private void applyWithRetry(ExecControl execControl, Fulfiller<Map<String, Action.Result>> fulfiller, Action action, Map<String, Action.Result> results, AtomicInteger repeatCounter) {
     execControl.exec().start( execution -> {
       applyInternal(execution, action)
         .then(result -> {
@@ -154,7 +211,7 @@ public class InvokeAndRetry implements Pattern<InvokeAndRetry.Params, ActionResu
             if (repeatCounter.decrementAndGet() == 0) {
               fulfiller.success(results);
             } else {
-              execAction(execControl, fulfiller, action, results, repeatCounter);
+              applyWithRetry(execControl, fulfiller, action, results, repeatCounter);
             }
           }
         });

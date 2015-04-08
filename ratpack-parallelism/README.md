@@ -10,9 +10,12 @@ Ratpack and parallelism
 ### Parallel
 Execute actions in parallel (without informing each other), collect the results and render the results as *JSON* string.
 Blocking actions should be called as ```execControl.blocking()```, that is performed on separate thread pool and do not
+block main event loop.
+
+Example execution:
 
     $ ./gradlew run
-    $ curl -v -X GET http://localhost:5050/parallel
+    $ curl -v -X GET http://localhost:5050/api/parallel
 
 The ```X-Response-Time``` header provides handler execution time.
 
@@ -20,9 +23,10 @@ The ```X-Response-Time``` header provides handler execution time.
 
 Execute actions in parallel (independently), collect the results, apply post processing action and render result as *JSON* output.
 
+Example execution:
 
     $ ./gradlew run
-    $ curl -v -X GET http://localhost:5050/fanoutfanin
+    $ curl -v -X GET http://localhost:5050/api/fanoutfanin
 
 The ```X-Response-Time``` header provides handler execution time.
 
@@ -33,3 +37,37 @@ number of threads. Promises executed in parallel that exceed event loop's number
 All blocking operations should be called as ```execControl.blocking()```, that are performed on separate thread pool and do not block
 main event loop.
 
+### Invoke with Retry
+Execute action and if it fails (thrown exception) retry it number of times.
+
+Example execution
+
+    $ ./gradlew run
+    $ curl -v -X GET http://localhost:5050/api/invokewithretry
+
+Default retry count can be set as ```PatternsModule``` configuration parameter ```defaultRetryCount```. Example configuration:
+
+    RatpackServer.start(server -> server
+      .registry(Guice.registry(b -> b
+        .add(PatternsModule.class, config -> {
+          config.setDefaultRetryCount(3);
+        })
+      ))
+    );
+
+Default retry count can be overridden as parameter to pattern's ```apply``` method.
+
+    pattern.apply(ctx, ctx, InvokeAndRetry.Params.of(action, Integer.valueOf(5)))
+
+#### Retries executed asynchronously
+Retries can be executed asynchronously. It means that action is executed and if fails all subsequent retries are executed
+in separated execution. Result of first action execution is returned to the caller while retries are executed asynchronously.
+
+Example execution:
+
+    $ ./gradlew run
+    $ curl -v -X GET http://localhost:5050/api/invokewithretry?mode=async
+
+Asynchronous retry mode can be declared as ```asyncRetry``` parameter of ```InvokeWithRetry.Params```.
+
+    pattern.apply(ctx, ctx, InvokeAndRetry.Params.of(action, Integer.valueOf(5), true /*asyncRetry*/))

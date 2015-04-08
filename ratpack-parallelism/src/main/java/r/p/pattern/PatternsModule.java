@@ -43,8 +43,8 @@ public class PatternsModule extends ConfigurableModule<PatternsModule.Config> {
 
   @Provides
   @Singleton
-  InvokeAndRetry provideInvokeAndRetry(Config config) {
-    return new InvokeAndRetry(config.getDefaultRetryCount());
+  InvokeWithRetry provideInvokeAndRetry(Config config) {
+    return new InvokeWithRetry(config.getDefaultRetryCount());
   }
 
   /**

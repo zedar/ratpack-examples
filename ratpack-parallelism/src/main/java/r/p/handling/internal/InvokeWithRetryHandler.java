@@ -18,9 +18,10 @@ package r.p.handling.internal;
 
 import com.google.common.reflect.TypeToken;
 import r.p.exec.Action;
-import r.p.pattern.InvokeAndRetry;
+import r.p.pattern.InvokeWithRetry;
 import ratpack.handling.Context;
 import ratpack.handling.Handler;
+import ratpack.util.MultiValueMap;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -28,8 +29,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * A handler that shows how <b>InvokeAndRetry</b> pattern works.
  */
-public class InvokeAndRetryHandler implements Handler {
-  private static final TypeToken<InvokeAndRetry> PATTERN_TYPE_TOKEN = TypeToken.of(InvokeAndRetry.class);
+public class InvokeWithRetryHandler implements Handler {
+  private static final TypeToken<InvokeWithRetry> PATTERN_TYPE_TOKEN = TypeToken.of(InvokeWithRetry.class);
 
   @Override
   public void handle(Context ctx) throws Exception {
@@ -44,8 +45,14 @@ public class InvokeAndRetryHandler implements Handler {
         })
       );
 
-      InvokeAndRetry pattern = ctx.get(PATTERN_TYPE_TOKEN);
-      ctx.render(pattern.apply(ctx, ctx, InvokeAndRetry.Params.of(action, Integer.valueOf(5))));
+      // check if retries should
+      boolean asyncRetry = false;
+      MultiValueMap<String, String> queryAttrs = ctx.getRequest().getQueryParams();
+      if (queryAttrs != null && "async".equals(queryAttrs.get("mode"))) {
+        asyncRetry = true;
+      }
+      InvokeWithRetry pattern = ctx.get(PATTERN_TYPE_TOKEN);
+      ctx.render(pattern.apply(ctx, ctx, InvokeWithRetry.Params.of(action, Integer.valueOf(5), asyncRetry)));
     } catch (Exception ex) {
       ctx.clientError(404);
     }

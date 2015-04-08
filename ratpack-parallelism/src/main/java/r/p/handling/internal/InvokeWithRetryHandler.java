@@ -52,6 +52,7 @@ public class InvokeWithRetryHandler implements Handler {
       // check if retries have to be executed asynchronously
       boolean asyncRetry = false;
       MultiValueMap<String, String> queryAttrs = ctx.getRequest().getQueryParams();
+      System.out.println("QUERY: " + queryAttrs.toString());
       if (queryAttrs != null && "async".equals(queryAttrs.get("retrymode"))) {
         asyncRetry = true;
       }
@@ -66,9 +67,8 @@ public class InvokeWithRetryHandler implements Handler {
       if (asyncAction) {
         boolean finalAsyncRetry = asyncRetry;
         ctx.exec().start( execution -> {
-          Thread.sleep(5000);
           pattern.apply(execution, ctx, InvokeWithRetry.Params.of(action, Integer.valueOf(5), finalAsyncRetry))
-            .then( actionResults -> {
+            .then(actionResults -> {
               // TODO: log and store results for the future
             });
         });

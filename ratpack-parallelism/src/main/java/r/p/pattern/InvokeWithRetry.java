@@ -182,10 +182,8 @@ public class InvokeWithRetry implements Pattern<InvokeWithRetry.Params, ActionRe
       .map(ImmutableMap::copyOf)
       .map(ActionResults::new)
       .wiretap( result -> {
-        log.debug("ENTERED ASYNC RETRY");
         ActionResults actionResults = result.getValue();
         Action.Result actionResult = actionResults.getResults().get(action.getName());
-        log.debug("ASYNC RETRY name: {}, error: {}", action.getName(), actionResult.getCode());
         if (actionResult != null && !"0".equals(actionResult.getCode())) {
           // execute retries asynchronously
           apply(execControl, action, retryCount)
@@ -203,7 +201,7 @@ public class InvokeWithRetry implements Pattern<InvokeWithRetry.Params, ActionRe
     execControl.exec().start( execution -> {
       applyInternal(execution, action)
         .then(result -> {
-          log.debug("APPLY retry counter: {}", repeatCounter.get());
+          log.debug("APPLY retry from: {}", repeatCounter.get());
           results.put(action.getName(), result);
           if ("0".equals(result.getCode())) {
             fulfiller.success(results);

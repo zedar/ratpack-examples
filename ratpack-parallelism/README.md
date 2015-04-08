@@ -80,7 +80,13 @@ Example execution:
     $ ./gradlew run
     $ curl -v -X GET http://localhost:5050/api/invokewithretry?mode=async
 
-Caller could get immediate response with information that execution started in background.
+**Note:**
+
+In order to pass more than one query parameter to *curl* command put quotes around the url
+
+    $ curl -v -X GET "http://localhost:5050/api/invokewithretry?mode=async&retrymode=async"
+
+Caller can get immediate response with information that execution started in background.
 The following code from [InvokeWithRetryHandler]() demonstrates how to implement such asynchronous execution:
 
     InvokeWithRetry pattern = ctx.get(PATTERN_TYPE_TOKEN);
@@ -94,3 +100,4 @@ The following code from [InvokeWithRetryHandler]() demonstrates how to implement
     });
     // 2: return response with information about action to be run in background
     ctx.render(ctx.promiseOf(new ActionResults(ImmutableMap.<String, Action.Result>of(action.getName(), Action.Result.success("EXECUTING IN BACKGROUND")))));
+

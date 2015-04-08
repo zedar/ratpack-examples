@@ -16,9 +16,13 @@
 
 package r.p.handling.internal;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.reflect.TypeToken;
 import r.p.exec.Action;
+import r.p.exec.ActionResults;
 import r.p.pattern.InvokeWithRetry;
+import ratpack.exec.ExecControl;
+import ratpack.exec.Promise;
 import ratpack.handling.Context;
 import ratpack.handling.Handler;
 import ratpack.util.MultiValueMap;
@@ -45,14 +49,33 @@ public class InvokeWithRetryHandler implements Handler {
         })
       );
 
-      // check if retries should
+      // check if retries have to be executed asynchronously
       boolean asyncRetry = false;
       MultiValueMap<String, String> queryAttrs = ctx.getRequest().getQueryParams();
-      if (queryAttrs != null && "async".equals(queryAttrs.get("mode"))) {
+      if (queryAttrs != null && "async".equals(queryAttrs.get("retrymode"))) {
         asyncRetry = true;
       }
       InvokeWithRetry pattern = ctx.get(PATTERN_TYPE_TOKEN);
-      ctx.render(pattern.apply(ctx, ctx, InvokeWithRetry.Params.of(action, Integer.valueOf(5), asyncRetry)));
+
+      // check if action should be executed asynchronously (in background)
+      boolean asyncAction = false;
+      if (queryAttrs != null && "async".equals(queryAttrs.get("mode"))) {
+        asyncAction = true;
+      }
+
+      if (asyncAction) {
+        boolean finalAsyncRetry = asyncRetry;
+        ctx.exec().start( execution -> {
+          Thread.sleep(5000);
+          pattern.apply(execution, ctx, InvokeWithRetry.Params.of(action, Integer.valueOf(5), finalAsyncRetry))
+            .then( actionResults -> {
+              // TODO: log and store results for the future
+            });
+        });
+        ctx.render(ctx.promiseOf(new ActionResults(ImmutableMap.<String, Action.Result>of(action.getName(), Action.Result.success("EXECUTING IN BACKGROUND")))));
+      } else {
+        ctx.render(pattern.apply(ctx, ctx, InvokeWithRetry.Params.of(action, Integer.valueOf(5), asyncRetry)));
+      }
     } catch (Exception ex) {
       ctx.clientError(404);
     }

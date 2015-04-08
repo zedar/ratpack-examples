@@ -66,8 +66,31 @@ in separated execution. Result of first action execution is returned to the call
 Example execution:
 
     $ ./gradlew run
-    $ curl -v -X GET http://localhost:5050/api/invokewithretry?mode=async
+    $ curl -v -X GET http://localhost:5050/api/invokewithretry?retrymode=async
 
 Asynchronous retry mode can be declared as ```asyncRetry``` parameter of ```InvokeWithRetry.Params```.
 
     pattern.apply(ctx, ctx, InvokeAndRetry.Params.of(action, Integer.valueOf(5), true /*asyncRetry*/))
+
+### Async Invoke with Retry
+Thanks to [ratpack](http://ratpack.io) action can be executed completely asynchronously, in background.
+
+Example execution:
+
+    $ ./gradlew run
+    $ curl -v -X GET http://localhost:5050/api/invokewithretry?mode=async
+
+Caller could get immediate response with information that execution started in background.
+The following code from [InvokeWithRetryHandler]() demonstrates how to implement such asynchronous execution:
+
+    InvokeWithRetry pattern = ctx.get(PATTERN_TYPE_TOKEN);
+    // 1: start new execution
+    ctx.exec().start( execution -> {
+      // 3: when then is called pattern starts to execute action with potential retries
+      pattern.apply(execution, ctx, InvokeWithRetry.Params.of(action, Integer.valueOf(5)))
+        .then( actionResults -> {
+           // 4: get final results
+        });
+    });
+    // 2: return response with information about action to be run in background
+    ctx.render(ctx.promiseOf(new ActionResults(ImmutableMap.<String, Action.Result>of(action.getName(), Action.Result.success("EXECUTING IN BACKGROUND")))));

@@ -31,7 +31,9 @@ public class Main {
     RatpackServer.start(server -> server
       .registry(Guice.registry(b -> b
             .add(JacksonModule.class, c -> c.prettyPrint(true))
-            .add(PatternsModule.class)
+            .add(PatternsModule.class, config -> {
+              config.setDefaultRetryCount(3);
+            })
             .bindInstance(HealthCheck.of("eventLoopSize", execControl -> execControl
               .promiseOf(HealthCheck.Result.healthy())))
             .bindInstance(ActionResultsRenderer.class, new ActionResultsRenderer())

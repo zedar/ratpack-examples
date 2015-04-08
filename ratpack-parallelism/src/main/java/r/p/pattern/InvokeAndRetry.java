@@ -27,8 +27,6 @@ import ratpack.exec.Fulfiller;
 import ratpack.exec.Promise;
 
 import java.util.Map;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -37,6 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class InvokeAndRetry implements Pattern {
 
   private static final Logger log = LoggerFactory.getLogger(InvokeAndRetry.class);
+  private final int defaultRetryCount;
 
   /**
    * The name of the pattern that indicates pattern to execute in handler
@@ -44,6 +43,15 @@ public class InvokeAndRetry implements Pattern {
    * Value: {@value}
    */
   public static final String PATTERN_NAME = "invokeandretry";
+
+  /**
+   * Constructor
+   *
+   * @param defaultRetryCount the default retry count for the failed action. Can be overridden on {@code apply} method level.
+   */
+  public InvokeAndRetry(int defaultRetryCount) {
+    this.defaultRetryCount = defaultRetryCount;
+  }
 
   /**
    * The name of the pattern
@@ -60,12 +68,16 @@ public class InvokeAndRetry implements Pattern {
   }
 
   public Promise<ActionResults> apply(ExecControl execControl, Action action) throws Exception {
+    return apply(execControl, action, null);
+  }
+
+  public Promise<ActionResults> apply(ExecControl execControl, Action action, Integer retryCount) throws Exception {
     if (action == null) {
       return execControl.promiseOf(new ActionResults(ImmutableMap.<String, Action.Result>of()));
     }
 
     return execControl.<Map<String, Action.Result>>promise( fulfiller -> {
-      AtomicInteger repeatCounter = new AtomicInteger(3);
+      AtomicInteger repeatCounter = new AtomicInteger(retryCount != null ? retryCount.intValue() : defaultRetryCount);
       Map<String, Action.Result> results = Maps.newConcurrentMap();
       execAction(execControl, fulfiller, action, results, repeatCounter);
     })
@@ -73,11 +85,11 @@ public class InvokeAndRetry implements Pattern {
       .map(ActionResults::new);
   }
 
-  private void execAction(ExecControl execControl, Fulfiller fulfiller, Action action, Map<String, Action.Result> results, AtomicInteger repeatCounter) {
+  private void execAction(ExecControl execControl, Fulfiller<Map<String, Action.Result>> fulfiller, Action action, Map<String, Action.Result> results, AtomicInteger repeatCounter) {
     execControl.exec().start( execution -> {
       applyInternal(execution, action)
         .then(result -> {
-          System.out.println("EXECUTED: " + repeatCounter.get());
+          log.debug("APPLY retry counter: {}", repeatCounter.get());
           results.put(action.getName(), result);
           if ("0".equals(result.getCode())) {
             fulfiller.success(results);

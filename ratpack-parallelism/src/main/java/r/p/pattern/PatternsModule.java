@@ -16,6 +16,7 @@
 
 package r.p.pattern;
 
+import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import ratpack.guice.ConfigurableModule;
 
@@ -30,7 +31,7 @@ import ratpack.guice.ConfigurableModule;
  * <p>
  * Configuration options:
  * <ul>
- *   <li>None</li>
+ *   <li><b>defaultRetryCount</b> - The default retry count for patterns that support retry.</li>
  * </ul>
  */
 public class PatternsModule extends ConfigurableModule<PatternsModule.Config> {
@@ -38,12 +39,26 @@ public class PatternsModule extends ConfigurableModule<PatternsModule.Config> {
   protected void configure() {
     bind(FanOutFanIn.class).in(Singleton.class);
     bind(Parallel.class).in(Singleton.class);
-    bind(InvokeAndRetry.class).in(Singleton.class);
+  }
+
+  @Provides
+  @Singleton
+  InvokeAndRetry provideInvokeAndRetry(Config config) {
+    return new InvokeAndRetry(config.getDefaultRetryCount());
   }
 
   /**
    * The configuration object for {@link r.p.pattern.PatternsModule}
    */
   public static class Config {
+    private int defaultRetryCount;
+
+    public int getDefaultRetryCount() {
+      return defaultRetryCount;
+    }
+
+    public void setDefaultRetryCount(int defaultRetryCount) {
+      this.defaultRetryCount = defaultRetryCount < 0 ? 0 : defaultRetryCount;
+    }
   }
 }

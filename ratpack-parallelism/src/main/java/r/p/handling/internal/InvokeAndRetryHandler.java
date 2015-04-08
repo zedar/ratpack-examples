@@ -45,7 +45,7 @@ public class InvokeAndRetryHandler implements Handler {
       );
 
       InvokeAndRetry pattern = ctx.get(PATTERN_TYPE_TOKEN);
-      ctx.render(pattern.apply(ctx, action));
+      ctx.render(pattern.apply(ctx, action, Integer.valueOf(5)));
     } catch (Exception ex) {
       ctx.clientError(404);
     }

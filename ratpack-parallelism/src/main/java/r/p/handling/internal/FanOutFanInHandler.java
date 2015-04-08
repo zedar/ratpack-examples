@@ -78,7 +78,7 @@ public class FanOutFanInHandler implements Handler {
       );
 
       FanOutFanIn pattern = ctx.get(PATTERN_TYPE_TOKEN);
-      ctx.render(pattern.apply(ctx, actions, mergeResults));
+      ctx.render(pattern.apply(ctx, ctx, FanOutFanIn.Params.of(actions, mergeResults)));
     } catch (Exception ex) {
       ctx.clientError(404);
     }

@@ -20,13 +20,12 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import r.p.exec.Action;
 import r.p.exec.ActionResults;
-import r.p.exec.TypedAction;
 import ratpack.exec.ExecControl;
 import ratpack.exec.Promise;
+import ratpack.registry.Registry;
 
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -38,7 +37,39 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @see r.p.exec.Action
  * @see r.p.pattern.PatternsModule
  */
-public class Parallel implements Pattern {
+public class Parallel implements Pattern<Parallel.Params, ActionResults> {
+
+  /**
+   * Parameters necessary for pattern execution.
+   *
+   * Instances can be created by static method {@link of}
+   */
+  public static class Params {
+    private final Iterable<? extends Action> actions;
+
+    private Params(final Iterable<? extends Action> actions) {
+      this.actions = actions;
+    }
+
+    /**
+     * The collection of actions to execute.
+     *
+     * @return the collection of actions to execute
+     */
+    public Iterable<? extends Action> getActions() {
+      return actions;
+    }
+
+    /**
+     * Creates the structure of parameters for pattern execustion
+     *
+     * @param actions collection of actions to execute in parallel
+     * @return the structure of parameters for pattern execution
+     */
+    public static Params of(final Iterable<? extends Action> actions) {
+      return new Params(actions);
+    }
+  }
 
   /**
    * The name of the pattern that indicates pattern to execute in handler.
@@ -56,19 +87,24 @@ public class Parallel implements Pattern {
   public String getName() { return PATTERN_NAME; }
 
   /**
-   * Executes {@code actions} in parallel.
+   * Executes {@code Params.actions} in parallel.
    * <p>
    * The result of each {@code action} execution is added to {@link r.p.exec.ActionResults}.
    * <p>
    * if {@code action} throws an exception it is equivalent to error result.
    *
    * @param execControl an execution control
-   * @param actions a collection of actions to execute
+   * @param registry the server registry
+   * @param params params with collection of actions to execute
    * @return a promise for the results
    * @throws Exception any
    */
   @Override
-  public Promise<ActionResults> apply(ExecControl execControl, Iterable<? extends Action> actions) throws Exception {
+  public Promise<ActionResults> apply(ExecControl execControl, Registry registry, Params params) throws Exception {
+    return apply(execControl, params.getActions());
+  }
+
+  private Promise<ActionResults> apply(ExecControl execControl, Iterable<? extends Action> actions) throws Exception {
     Iterator<? extends Action> iterator = actions.iterator();
     if (!iterator.hasNext()) {
       return execControl.promiseOf(new ActionResults(ImmutableMap.<String, Action.Result>of()));

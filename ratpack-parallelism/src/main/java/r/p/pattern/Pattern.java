@@ -22,15 +22,19 @@ import r.p.exec.ActionResults;
 import r.p.exec.TypedAction;
 import ratpack.exec.ExecControl;
 import ratpack.exec.Promise;
+import ratpack.registry.Registry;
 
 /**
- * Lets execution of number of actions with the given integration pattern.
+ * Lets execution of actions with the given integration pattern.
  * <p>
  * Patterns are typically used for execution of blocking external (REST/Webservices) or internal actions in controlled way.
  * Sometimes is feasible to run actions in parallel, sometimes in sequence, sometimes with post or preprocessing.
  * Patterns return {@code Promise} so it is very easy to combine them sequence of non-blocking calls.
+ *
+ * @param <T> the type of action to execute
+ * @param <O> the output data from executed action
  */
-public interface Pattern {
+public interface Pattern<T,O> {
   /**
    * The <b>unique</b> name of the pattern.
    * <p>
@@ -41,40 +45,12 @@ public interface Pattern {
   String getName();
 
   /**
-   * Executes {@code actions} in controlled by {@code pattern} way.
-   * <p>
-   * This method returns a promise to allow actions execution to be asynchronous and non-blocking.
    *
    * @param execControl an execution control
-   * @param actions a collection of actions to execute
-   * @return a promise for the results
+   * @param registry the server registry
+   * @param params a structure of actions to be executed. Each pattern could have their own configuration of actions
+   * @return a promise for result of type <b>O</b>
    * @throws Exception any
    */
-  Promise<ActionResults> apply(ExecControl execControl, Iterable<? extends Action> actions) throws Exception;
-
-  /**
-   * Executes {@code actions} with post processing.
-   * <p>
-   * This method returns a promise to allow actions execution to be non-blocking.
-   * <p>
-   * If {@code postAction} is {@code null} this method is equivalent to {@code apply(execControl, actions)}.
-   * <p>
-   * If {@code postAction} throws an exception it is catched and mapped to error result.
-   *
-   * @param execControl an execution control
-   * @param actions a collection of actions to execute
-   * @param postAction an action to be applied for all actions results
-   * @return a promise for the results
-   * @throws Exception any
-   */
-  default Promise<ActionResults> apply(ExecControl execControl, Iterable<? extends Action> actions, TypedAction<ActionResults, ActionResults> postAction) throws Exception {
-    if (postAction != null) {
-      return apply(execControl, actions)
-        .flatMap(results -> postAction
-          .exec(execControl, results)
-          .mapError(throwable -> new ActionResults(ImmutableMap.<String, Action.Result>of(postAction.getName(), Action.Result.error(throwable)))));
-    } else {
-      return apply(execControl, actions);
-    }
-  }
+  Promise<O> apply(ExecControl execControl, Registry registry, T params) throws Exception;
 }

@@ -57,7 +57,7 @@ public class ParallelHandler implements Handler {
       ));
 
       Parallel pattern = ctx.get(PATTERN_TYPE_TOKEN);
-      ctx.render(pattern.apply(ctx, actions));
+      ctx.render(pattern.apply(ctx, ctx, Parallel.Params.of(actions)));
     } catch (Exception ex) {
       ctx.clientError(404);
     }

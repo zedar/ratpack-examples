@@ -22,8 +22,11 @@ import r.p.exec.TypedAction
 import ratpack.exec.ExecControl
 import ratpack.exec.ExecResult
 import ratpack.exec.Promise
+import ratpack.registry.Registries
+import ratpack.registry.Registry
 import ratpack.test.exec.ExecHarness
 import spock.lang.AutoCleanup
+import spock.lang.IgnoreRest
 import spock.lang.Specification
 
 import java.util.concurrent.CountDownLatch
@@ -66,9 +69,11 @@ class FanOutFanInSpec extends Specification {
   @AutoCleanup
   ExecHarness harness = ExecHarness.harness()
   FanOutFanIn pattern
+  Registry registry
 
   def setup() {
     pattern = new FanOutFanIn()
+    registry = Registries.just(new Parallel())
   }
 
   def "pattern name is fixed"() {
@@ -87,7 +92,7 @@ class FanOutFanInSpec extends Specification {
         fulfiller.success(Action.Result.success())}})]
 
     when:
-    Promise<ActionResults> promise = pattern.apply(harness.control, actions, null)
+    Promise<ActionResults> promise = pattern.apply(harness.control, registry, FanOutFanIn.Params.of(actions, null))
 
     then:
     thrown(NullPointerException)
@@ -104,7 +109,8 @@ class FanOutFanInSpec extends Specification {
     })
 
     when:
-    ExecResult<ActionResults> result = harness.yield { execControl -> pattern.apply(execControl, actions, finalizer)}
+    ExecResult<ActionResults> result = harness.yield { execControl ->
+      pattern.apply(execControl, registry, FanOutFanIn.Params.of(actions, finalizer))}
 
     then:
     ActionResults actionResults = result.getValue()
@@ -126,7 +132,7 @@ class FanOutFanInSpec extends Specification {
     })
 
     when:
-    Promise<ActionResults> promise = pattern.apply(harness.control, actions, finalizer)
+    Promise<ActionResults> promise = pattern.apply(harness.control, registry, FanOutFanIn.Params.of(actions, finalizer))
     ExecResult<ActionResults> result = harness.yield { execControl -> promise }
 
     then:
@@ -157,7 +163,8 @@ class FanOutFanInSpec extends Specification {
     }
 
     when:
-    ExecResult<CountedResult> result = harness.yield { execControl -> pattern.apply(execControl, actions, finalizer)}
+    ExecResult<CountedResult> result = harness.yield { execControl ->
+      pattern.apply(execControl, registry, FanOutFanIn.Params.of(actions, finalizer))}
 
     then:
     CountedResult countedResult = result.getValue()
@@ -191,7 +198,8 @@ class FanOutFanInSpec extends Specification {
     }
 
     when:
-    ExecResult<CountedResult> result = harness.yield { execControl -> pattern.apply(execControl, actions, finalizer) }
+    ExecResult<CountedResult> result = harness.yield { execControl ->
+      pattern.apply(execControl, registry, FanOutFanIn.Params.of(actions, finalizer)) }
 
     then:
     CountedResult countedResult = result.getValue()

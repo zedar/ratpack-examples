@@ -8,19 +8,20 @@ buildscript {
   }
 }
 
-apply plugin: "io.ratpack.ratpack-groovy"
+apply plugin: "io.ratpack.ratpack-java"
 apply plugin: "com.github.johnrengelman.shadow"
 apply plugin: "idea"
-apply plugin: "eclipse"
 
 repositories {
   jcenter()
 }
 
 dependencies {
+  compile ratpack.dependency("guice")
+  compile ratpack.dependency("session")
   // SpringLoaded enables runtime hot reloading.
   // It is not part of the app runtime and is not shipped in the distribution.
-  springloaded "org.springframework:springloaded:1.2.1.RELEASE"
+  //springloaded "org.springframework:springloaded:1.2.1.RELEASE"
 
   // Default SLF4J binding.  Note that this is a blocking implementation.
   // See here for a non blocking appender http://logging.apache.org/log4j/2.x/manual/async.html
@@ -28,3 +29,5 @@ dependencies {
 
   testCompile "org.spockframework:spock-core:0.7-groovy-2.0"
 }
+
+mainClassName = "r.cs.Main"

@@ -87,6 +87,15 @@ public class InvokeWithRetry implements Pattern<InvokeWithRetry.Params, ActionRe
     public boolean isAsyncRetry() { return asyncRetry; }
 
     /**
+     * Creates pattern parameters with default retry count and synchronous, while non-blocking retries.
+     * @param action an action to execute
+     * @return the structure of pattern parameters
+     */
+    public static Params of(final Action action) {
+      return new Params(action, null, false);
+    }
+
+    /**
      * Creates pattern parameters. Retries are executed synchronously, while still they are non-blocking.
      *
      * @param action an action to execute

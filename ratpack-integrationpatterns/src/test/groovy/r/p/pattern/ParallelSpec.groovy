@@ -102,7 +102,6 @@ class ParallelSpec extends Specification {
     }
   }
 
-  @IgnoreRest
   def "10 blocking actions execute in parallel"() {
     given:
     def actions = []

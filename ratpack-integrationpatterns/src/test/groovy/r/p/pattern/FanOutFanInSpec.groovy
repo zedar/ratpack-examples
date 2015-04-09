@@ -70,13 +70,27 @@ class FanOutFanInSpec extends Specification {
   ExecHarness harness = ExecHarness.harness()
   FanOutFanIn pattern
   Registry registry
+  TypedAction<ActionResults, CountedResult> counterAction
 
   def setup() {
     pattern = new FanOutFanIn()
     registry = Registries.just(new Parallel())
+    counterAction = TypedAction.of("finalizer") { execControl, actionResults ->
+      execControl.promise { fulfiller ->
+        CountedResult countedResult = new CountedResult()
+        actionResults.results?.each { k, v ->
+          if (v.code == "0") {
+            countedResult.succeded++
+          } else {
+            countedResult.failed++
+          }
+        }
+        fulfiller.success(countedResult)
+      }
+    }
   }
 
-  def "pattern name is fixed"() {
+  def "pattern name is defined"() {
     when:
     String patternName = pattern.getName()
 
@@ -142,29 +156,54 @@ class FanOutFanInSpec extends Specification {
     actionResults.results["foo"] == Action.Result.success()
   }
 
+  def "exception thrown from action is handled and provided to finalizer"() {
+    given:
+    def actions = [
+        Action.of("failure1") { execControl -> execControl.promise { fulfiller -> throw new IOException("failure1 exception")}},
+        Action.of("failure2") { execControl -> execControl.blocking { throw new IOException("failure2 exception")}}
+    ]
+
+    when:
+    ExecResult<CountedResult> result = harness.yield { execControl ->
+      pattern.apply(execControl, registry, FanOutFanIn.Params.of(actions, counterAction))
+    }
+
+    then:
+    CountedResult countedResult = result.getValue()
+    countedResult
+    countedResult.succeded == 0
+    countedResult.failed == 2
+  }
+
+  def "exception thrown from creation of promise for result are handled and provided to finalizer"() {
+    given:
+    def actions = [
+        Action.of("failure1") { execControl -> throw new IOException("failure1 exception") },
+        Action.of("failure2") { execControl -> throw new IOException("failure2 exception") }
+    ]
+
+    when:
+    ExecResult<CountedResult> result = harness.yield { execControl ->
+      pattern.apply(execControl, registry, FanOutFanIn.Params.of(actions, counterAction))
+    }
+
+    then:
+    CountedResult countedResult = result.getValue()
+    countedResult
+    countedResult.succeded == 0
+    countedResult.failed == 2
+  }
+
   def "counted succeeded and failed actions"() {
     given:
     def actions = [
       Action.of("foo") { execControl -> execControl.promise { fulfiller -> fulfiller.success(Action.Result.success())}},
       Action.of("bar") { execControl -> execControl.promise { fulfiller -> fulfiller.error(new IOException())}}
     ]
-    TypedAction<ActionResults, CountedResult> finalizer = TypedAction.of("finalizer") { execControl, actionResults ->
-      execControl.promise { fulfiller ->
-        CountedResult countedResult = new CountedResult()
-        actionResults.results?.each { k, v ->
-           if (v.code == "0") {
-             countedResult.succeded++
-           } else {
-             countedResult.failed++
-           }
-        }
-        fulfiller.success(countedResult)
-      }
-    }
 
     when:
     ExecResult<CountedResult> result = harness.yield { execControl ->
-      pattern.apply(execControl, registry, FanOutFanIn.Params.of(actions, finalizer))}
+      pattern.apply(execControl, registry, FanOutFanIn.Params.of(actions, counterAction))}
 
     then:
     CountedResult countedResult = result.getValue()
@@ -183,23 +222,10 @@ class FanOutFanInSpec extends Specification {
     for (int i = 0; i < 4 ; i++) {
       actions.add(new BlockingAction("foo_$i", i >= countDownLatches.size()-1 ? null : countDownLatches[i+1], countDownLatches[i]))
     }
-    TypedAction<ActionResults, CountedResult> finalizer = TypedAction.of("finalizer") { execControl, actionResults ->
-      execControl.promise { fulfiller ->
-        CountedResult countedResult = new CountedResult()
-        actionResults.results?.each { k, v ->
-          if (v.code == "0") {
-            countedResult.succeded++
-          } else {
-            countedResult.failed++
-          }
-        }
-        fulfiller.success(countedResult)
-      }
-    }
 
     when:
     ExecResult<CountedResult> result = harness.yield { execControl ->
-      pattern.apply(execControl, registry, FanOutFanIn.Params.of(actions, finalizer)) }
+      pattern.apply(execControl, registry, FanOutFanIn.Params.of(actions, counterAction)) }
 
     then:
     CountedResult countedResult = result.getValue()

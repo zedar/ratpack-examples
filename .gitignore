@@ -5,3 +5,4 @@
 **/*.ipr
 **/*/iws
 .DS_Store
+cookie.txt

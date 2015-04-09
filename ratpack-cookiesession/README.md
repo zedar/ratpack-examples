@@ -1,48 +1,17 @@
-Ratpack project template
+Cookie Session Values
 -----------------------------
 
-You have just created a basic Groovy Ratpack application. It doesn't do much
-at this point, but we have set you up with a standard project structure, a 
-Guice back Registry, simple home page, and Spock for writing tests (because 
-you'd be mad not to use it).
+## Prerequisites
 
-In this project you get:
+* [ratpack](http:ratpack.io) - version 0.9.15
 
-* A Gradle build file with pre-built Gradle wrapper
-* A tiny home page at src/ratpack/templates/index.html (it's a template)
-* A routing file at src/ratpack/Ratpack.groovy
-* Reloading enabled in build.gradle
-* A standard project structure:
+## Helpers
 
-    <proj>
-      |
-      +- src
-          |
-          +- ratpack
-          |     |
-          |     +- Ratpack.groovy
-          |     +- ratpack.properties
-          |     +- public // Static assets in here
-          |          |
-          |          +- images
-          |          +- lib
-          |          +- scripts
-          |          +- styles
-          |
-          +- main
-          |   |
-          |   +- groovy
-                   |
-                   +- // App classes in here!
-          |
-          +- test
-              |
-              +- groovy
-                   |
-                   +- // Spock tests in here!
+**curl and cookie management**
 
-That's it! You can start the basic app with
+Curl has ability to store and send cookie. Option *-b filename* reads cookies from the file while option
+*-c filename* saves cookies to the file.
 
-    ./gradlew run
-
-but it's up to you to add the bells, whistles, and meat of the application.
+    $ ./gradlew run
+    $ curl -v -b cookie.txt -c cookie.txt -X GET http://localhost:5050/set/foo
+    $ curl -v -b cookie.txt -c cookie.txt -X GET http://localhost:5050/set/bar

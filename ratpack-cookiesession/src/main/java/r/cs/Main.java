@@ -22,8 +22,14 @@ public class Main {
           .get("set/:value", ctx -> {
             SessionStorage sessionStorage = ctx.getRequest().get(SessionStorage.class);
             String value = ctx.getPathTokens().get("value");
-            sessionStorage.put("value", value);
-            ctx.render("VALUE SETO TO: " + value);
+            if (value == null || "".equals(value)) {
+              ctx.render(sessionStorage.getOrDefault("value", "NOT SET"));
+              return;
+            } else {
+              String prevValue = (String)sessionStorage.getOrDefault("value", "NOT SET");
+              sessionStorage.put("value", value);
+              ctx.render("VALUE SETO TO: " + value + " FROM: " + prevValue);
+            }
           })
         )
     );

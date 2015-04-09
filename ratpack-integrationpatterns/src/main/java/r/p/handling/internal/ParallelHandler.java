@@ -16,13 +16,9 @@
 
 package r.p.handling.internal;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.reflect.TypeToken;
 import r.p.exec.Action;
-import r.p.exec.ActionResults;
-import r.p.exec.TypedAction;
 import r.p.exec.internal.LongBlockingIOAction;
-import r.p.pattern.FanOutFanIn;
 import r.p.pattern.Parallel;
 import ratpack.handling.Context;
 import ratpack.handling.Handler;
@@ -41,19 +37,19 @@ public class ParallelHandler implements Handler {
   public void handle(Context ctx) throws Exception {
     try {
       Iterable<Action> actions = new LinkedList<>(Arrays.asList(
-        new LongBlockingIOAction("foo"),
-        new LongBlockingIOAction("bar"),
-        Action.of("buzz", execControl -> execControl
+        new LongBlockingIOAction("foo", "data"),
+        new LongBlockingIOAction("bar", "data"),
+        Action.<String>of("buzz", "data", execControl -> execControl
           .promise(fulfiller -> {
             throw new IOException("CONTROLLED EXCEPTION");
           })),
-        new LongBlockingIOAction("quzz"),
-        new LongBlockingIOAction("foo_1"),
-        new LongBlockingIOAction("foo_2"),
-        new LongBlockingIOAction("foo_3"),
-        new LongBlockingIOAction("foo_4"),
-        new LongBlockingIOAction("foo_5"),
-        new LongBlockingIOAction("foo_6")
+        new LongBlockingIOAction("quzz", "data"),
+        new LongBlockingIOAction("foo_1", "data"),
+        new LongBlockingIOAction("foo_2", "data"),
+        new LongBlockingIOAction("foo_3", "data"),
+        new LongBlockingIOAction("foo_4", "data"),
+        new LongBlockingIOAction("foo_5", "data"),
+        new LongBlockingIOAction("foo_6", "data")
       ));
 
       Parallel pattern = ctx.get(PATTERN_TYPE_TOKEN);

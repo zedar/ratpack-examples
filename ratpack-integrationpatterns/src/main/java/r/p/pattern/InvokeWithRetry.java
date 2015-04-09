@@ -21,6 +21,7 @@ import com.google.common.collect.Maps;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import r.p.exec.Action;
+import r.p.exec.ActionResult;
 import r.p.exec.ActionResults;
 import ratpack.api.Nullable;
 import ratpack.exec.ExecControl;
@@ -162,9 +163,9 @@ public class InvokeWithRetry implements Pattern<InvokeWithRetry.Params, ActionRe
   @Override
   public Promise<ActionResults> apply(ExecControl execControl, Registry registry, Params params) throws Exception {
     if (params.getAction() == null) {
-      return execControl.promiseOf(new ActionResults(ImmutableMap.<String, Action.Result>of()));
+      return execControl.promiseOf(new ActionResults(ImmutableMap.<String, ActionResult>of()));
     }
-    int retryCount = params.getRetryCount() != null ? params.getRetryCount().intValue() : defaultRetryCount;
+    int retryCount = params.getRetryCount() != null ? params.getRetryCount() : defaultRetryCount;
     if (params.isAsyncRetry()) {
       return applyAsync(execControl, params.getAction(), retryCount);
     } else {
@@ -173,9 +174,9 @@ public class InvokeWithRetry implements Pattern<InvokeWithRetry.Params, ActionRe
   }
 
   private Promise<ActionResults> apply(ExecControl execControl, Action action, int retryCount) throws Exception {
-    return execControl.<Map<String, Action.Result>>promise( fulfiller -> {
+    return execControl.<Map<String, ActionResult>>promise( fulfiller -> {
       AtomicInteger repeatCounter = new AtomicInteger(retryCount + 1);
-      Map<String, Action.Result> results = Maps.newConcurrentMap();
+      Map<String, ActionResult> results = Maps.newConcurrentMap();
       applyWithRetry(execControl, fulfiller, action, results, repeatCounter);
     })
       .map(ImmutableMap::copyOf)
@@ -183,22 +184,20 @@ public class InvokeWithRetry implements Pattern<InvokeWithRetry.Params, ActionRe
   }
 
   private Promise<ActionResults> applyAsync(ExecControl execControl, Action action, int retryCount) throws Exception {
-    return execControl.<Map<String, Action.Result>>promise( fulfiller -> {
+    return execControl.<Map<String, ActionResult>>promise( fulfiller -> {
       AtomicInteger repeatCounter = new AtomicInteger(1);
-      Map<String, Action.Result> results = Maps.newConcurrentMap();
+      Map<String, ActionResult> results = Maps.newConcurrentMap();
       applyWithRetry(execControl, fulfiller, action, results, repeatCounter);
     })
       .map(ImmutableMap::copyOf)
       .map(ActionResults::new)
       .wiretap( result -> {
         ActionResults actionResults = result.getValue();
-        Action.Result actionResult = actionResults.getResults().get(action.getName());
+        ActionResult actionResult = actionResults.getResults().get(action.getName());
         if (actionResult != null && !"0".equals(actionResult.getCode())) {
           // execute retries asynchronously
           apply(execControl, action, retryCount)
-            .defer(runnable -> {
-              runnable.run();
-            })
+            .defer(Runnable::run)
             .then(retryActionResults -> {
               // TODO: add logging and some special callback
             });
@@ -206,7 +205,7 @@ public class InvokeWithRetry implements Pattern<InvokeWithRetry.Params, ActionRe
       });
   }
 
-  private void applyWithRetry(ExecControl execControl, Fulfiller<Map<String, Action.Result>> fulfiller, Action action, Map<String, Action.Result> results, AtomicInteger repeatCounter) {
+  private void applyWithRetry(ExecControl execControl, Fulfiller<Map<String, ActionResult>> fulfiller, Action action, Map<String, ActionResult> results, AtomicInteger repeatCounter) {
     execControl.exec().start( execution -> {
       applyInternal(execution, action)
         .then(result -> {
@@ -225,11 +224,11 @@ public class InvokeWithRetry implements Pattern<InvokeWithRetry.Params, ActionRe
     });
   }
 
-  private Promise<Action.Result> applyInternal(ExecControl execControl, Action action) {
+  private Promise<ActionResult> applyInternal(ExecControl execControl, Action action) {
     try {
-      return action.exec(execControl).mapError(Action.Result::error);
+      return action.exec(execControl).mapError(ActionResult::error);
     } catch (Exception ex) {
-      return execControl.promiseOf(Action.Result.error(ex));
+      return execControl.promiseOf(ActionResult.error(ex));
     }
   }
 }

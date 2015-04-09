@@ -19,6 +19,7 @@ package r.p.pattern;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import r.p.exec.Action;
+import r.p.exec.ActionResult;
 import r.p.exec.ActionResults;
 import ratpack.exec.ExecControl;
 import ratpack.exec.Promise;
@@ -42,7 +43,7 @@ public class Parallel implements Pattern<Parallel.Params, ActionResults> {
   /**
    * Parameters necessary for pattern execution.
    *
-   * Instances can be created by static method {@link of}
+   * Instances can be created by static method {@link #of}
    */
   public static class Params {
     private final Iterable<? extends Action> actions;
@@ -107,18 +108,18 @@ public class Parallel implements Pattern<Parallel.Params, ActionResults> {
   private Promise<ActionResults> apply(ExecControl execControl, Iterable<? extends Action> actions) throws Exception {
     Iterator<? extends Action> iterator = actions.iterator();
     if (!iterator.hasNext()) {
-      return execControl.promiseOf(new ActionResults(ImmutableMap.<String, Action.Result>of()));
+      return execControl.promiseOf(new ActionResults(ImmutableMap.<String, ActionResult>of()));
     }
 
-    return execControl.<Map<String, Action.Result>>promise(fulfiller -> {
+    return execControl.<Map<String, ActionResult>>promise(fulfiller -> {
       AtomicInteger counter = new AtomicInteger();
-      Map<String, Action.Result> results = Maps.newConcurrentMap();
+      Map<String, ActionResult> results = Maps.newConcurrentMap();
       while (iterator.hasNext()) {
         counter.incrementAndGet();
         Action action = iterator.next();
         if (action == null || action.getName() == null) {
           int i = counter.decrementAndGet();
-          results.put("ACTION_NULL_IDX_" + i, Action.Result.error(new NullPointerException()));
+          results.put("ACTION_NULL_IDX_" + i, ActionResult.error(new NullPointerException()));
           if (i == 0 && !iterator.hasNext()) {
             fulfiller.success(results);
             return;
@@ -127,9 +128,7 @@ public class Parallel implements Pattern<Parallel.Params, ActionResults> {
         }
         execControl.exec().start(execution ->
             apply(execution, action)
-              .defer(runnable -> {
-                runnable.run();
-              })
+              .defer(Runnable::run)
               .wiretap(result -> {
 
               })
@@ -145,11 +144,11 @@ public class Parallel implements Pattern<Parallel.Params, ActionResults> {
       .map(ActionResults::new);
   }
 
-  private Promise<Action.Result> apply(ExecControl execControl, Action action) {
+  private Promise<ActionResult> apply(ExecControl execControl, Action action) {
     try {
-      return action.exec(execControl).mapError(Action.Result::error);
+      return action.exec(execControl).mapError(ActionResult::error);
     } catch (Exception ex) {
-      return execControl.promiseOf(Action.Result.error(ex));
+      return execControl.promiseOf(ActionResult.error(ex));
     }
   }
 }

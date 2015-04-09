@@ -25,14 +25,14 @@ import r.p.exec.Action;
  * @see r.p.handling.ExecHandler
  */
 public class ActionResults {
-  private final ImmutableMap<String, Action.Result> results;
+  private final ImmutableMap<String, ActionResult> results;
 
   /**
    * Constructor
    *
    * @param results immutable map of action name to its result
    */
-  public ActionResults(ImmutableMap<String, Action.Result> results) {
+  public ActionResults(ImmutableMap<String, ActionResult> results) {
     this.results = results;
   }
 
@@ -41,5 +41,5 @@ public class ActionResults {
    *
    * @return the results
    */
-  public ImmutableMap<String, Action.Result> getResults() { return results; }
+  public ImmutableMap<String, ActionResult> getResults() { return results; }
 }

@@ -18,6 +18,7 @@ package r.p.pattern;
 
 import com.google.common.collect.ImmutableMap;
 import r.p.exec.Action;
+import r.p.exec.ActionResult;
 import r.p.exec.ActionResults;
 import r.p.exec.TypedAction;
 import ratpack.exec.ExecControl;
@@ -120,7 +121,7 @@ public class FanOutFanIn implements Pattern<FanOutFanIn.Params, ActionResults> {
       return apply(execControl, registry, actions)
         .flatMap(results -> postAction
           .exec(execControl, results)
-          .mapError(throwable -> new ActionResults(ImmutableMap.<String, Action.Result>of(postAction.getName(), Action.Result.error(throwable)))));
+          .mapError(throwable -> new ActionResults(ImmutableMap.<String, ActionResult>of(postAction.getName(), ActionResult.error(throwable)))));
     } else {
       return apply(execControl, registry, actions);
     }

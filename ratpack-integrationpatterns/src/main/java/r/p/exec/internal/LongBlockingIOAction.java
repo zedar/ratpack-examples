@@ -1,6 +1,7 @@
 package r.p.exec.internal;
 
 import r.p.exec.Action;
+import r.p.exec.ActionResult;
 import ratpack.exec.ExecControl;
 import ratpack.exec.Promise;
 
@@ -13,22 +14,24 @@ import ratpack.exec.Promise;
  */
 public class LongBlockingIOAction implements Action {
   private final String name;
+  private final String data;
 
-  public LongBlockingIOAction(String name) { this.name = name; }
+  public LongBlockingIOAction(String name, String data) {
+    this.name = name;
+    this.data = data;
+  }
 
   @Override
   public String getName() { return name; }
 
   @Override
-  public Promise<Result> exec(ExecControl execControl) throws Exception {
+  public Object getData() { return data; }
+
+  @Override
+  public Promise<ActionResult> exec(ExecControl execControl) throws Exception {
     return execControl.blocking(() -> {
       Thread.sleep(3000);
-      return Action.Result.success();
+      return ActionResult.success(data);
     });
-//    promise(fulfiller -> {
-//      // TODO:
-//      Thread.sleep(3000);
-//      fulfiller.success(Action.Result.success());
-//    });
   }
 }

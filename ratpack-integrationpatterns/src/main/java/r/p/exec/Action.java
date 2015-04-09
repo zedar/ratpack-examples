@@ -16,7 +16,6 @@
 
 package r.p.exec;
 
-import ratpack.api.Nullable;
 import ratpack.exec.ExecControl;
 import ratpack.exec.Promise;
 import ratpack.func.Function;
@@ -30,6 +29,9 @@ import ratpack.func.Function;
  * The actual execution is implemented by the {@link #exec(ExecControl)} method, that returns a promise for a {@link r.p.exec.Action.Result}.
  * <p>
  * The actions are typically executed by the particular {@link r.p.pattern.Pattern} or combination of patterns.
+ *
+ * @param <T> input data type processed by the action
+ * @param <O> output data that enrich action result
  *
  * @see r.p.handling.ExecHandler
  * @see r.p.pattern.Pattern
@@ -45,6 +47,13 @@ public interface Action {
   String getName();
 
   /**
+   * The data processed by the action
+   *
+   * @return the action data
+   */
+  Object getData();
+
+  /**
    * Executes the action, providing a promise for the result.
    * <p>
    * This method returns a promise to allow action execution to be asynchronous.
@@ -55,91 +64,50 @@ public interface Action {
    * @return a promise for the result
    * @throws Exception any
    */
-  Promise<Result> exec(ExecControl execControl) throws Exception;
+  Promise<ActionResult> exec(ExecControl execControl) throws Exception;
 
   /**
    * Factory for action implementation.
    *
    * @param name a name of the action
    * @param func an action implementation
-   * @return a named action implementation
+   * @return the named action implementation
    */
-  public static Action of(String name, Function<? super ExecControl, ? extends Promise<Result>> func) {
+  public static Action of(String name, Function<? super ExecControl, Promise<ActionResult>> func) {
     return new Action() {
       @Override
       public String getName() { return name; }
 
       @Override
-      public Promise<Result> exec(ExecControl execControl) throws Exception {
+      public Object getData() { return null; }
+
+      @Override
+      public Promise<ActionResult> exec(ExecControl execControl) throws Exception {
         return func.apply(execControl);
       }
     };
   }
 
   /**
-   * The result of an action execution.
-   * <p>
-   * Instances can be create by one of the static methods.
+   * Factory for action implementation.
+   *
+   * @param name a name of the action
+   * @param data a data associated to the action
+   * @param func an action implementation
+   * @return the named action implementation
    */
-  public static class Result {
-    private static final Result NO_ERROR = new Result("0", null);
+  public static Action of(String name, Object data, Function<? super ExecControl, Promise<ActionResult>> func) {
+    return new Action() {
+      @Override
+      public String getName() { return name; }
 
-    private final String code;
-    private final String message;
+      @Override
+      public Object getData() { return data; }
 
-    private Result(String code, String message) {
-      this.code = code;
-      this.message = message;
-    }
-
-    /**
-     * An error code. If <b>0</b> no error was reported.
-     *
-     * @return <b>0<b/> if no error or another string otherwise
-     */
-    public String getCode() { return code; }
-
-    /**
-     * Any message provided as part of action execution, may be {@code null}.
-     * <p>
-     * Message may be provided with error or successful result.
-     *
-     * @return any message provided as part of action execution.
-     */
-    @Nullable
-    public String getMessage() { return message; }
-
-    /**
-     * Creates a successful result, with no message.
-     *
-     * @return a successful result, with no message.
-     */
-    public static Result success() { return NO_ERROR; }
-
-    /**
-     * Creates successful result, with the given message.
-     *
-     * @param message a message to accompany the result
-     * @return a successful result, with the given message
-     */
-    public static Result success(String message) { return new Result("0", message); }
-
-    /**
-     * Creates an error result, with the given message.
-     *
-     * @param code an error code
-     * @param message a message to accompany the result
-     * @return an failed result, with the given message
-     */
-    public static Result error(String code, String message) { return new Result(code, message); }
-
-    /**
-     * Creates an error result, with the given exception.
-     * <p>
-     * The message of the given exception will be used as the message of the result
-     * @param error an exception thrown during action exception
-     * @return an failed result, with the given error
-     */
-    public static Result error(Throwable error) { return new Result("100", error.getMessage()); }
+      @Override
+      public Promise<ActionResult> exec(ExecControl execControl) throws Exception {
+        return func.apply(execControl);
+      }
+    };
   }
 }

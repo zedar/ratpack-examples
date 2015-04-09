@@ -18,6 +18,7 @@ package r.p.pattern
 
 import com.google.common.collect.ImmutableMap
 import r.p.exec.Action
+import r.p.exec.ActionResult
 import r.p.exec.ActionResults
 import ratpack.exec.ExecResult
 import ratpack.registry.Registries
@@ -68,7 +69,7 @@ class InvokeWithRetrySpec extends Specification {
     AtomicInteger counter = new AtomicInteger()
     Action action = Action.of("foo") { execControl -> execControl.promise{ fulfiller ->
       counter.incrementAndGet()
-      fulfiller.success(Action.Result.success())
+      fulfiller.success(ActionResult.success())
     }}
 
     when:
@@ -135,7 +136,7 @@ class InvokeWithRetrySpec extends Specification {
     Action action = Action.of("foo") { execControl -> execControl.promise{ fulfiller ->
       int current = counter.incrementAndGet()
       if (current >= 3) {
-        fulfiller.success(Action.Result.success())
+        fulfiller.success(ActionResult.success())
       } else {
         fulfiller.error(new IOException("Failure $current"))
       }
@@ -161,7 +162,7 @@ class InvokeWithRetrySpec extends Specification {
     Action action = Action.of("foo") { execControl -> execControl.promise{ fulfiller ->
       int current = counter.incrementAndGet()
       if (current > 2) {
-        fulfiller.success(Action.Result.success())
+        fulfiller.success(ActionResult.success())
       } else {
         fulfiller.error(new IOException("$current"))
       }
@@ -188,7 +189,7 @@ class InvokeWithRetrySpec extends Specification {
     Action action = Action.of("foo") { execControl -> execControl.promise{ fulfiller ->
       int current = counter.incrementAndGet()
       if (current > 2) {
-        fulfiller.success(Action.Result.success())
+        fulfiller.success(ActionResult.success())
       } else {
         fulfiller.error(new IOException("$current"))
       }
@@ -207,7 +208,7 @@ class InvokeWithRetrySpec extends Specification {
             releaser2.countDown()
           }
       }
-      execControl.promiseOf(new ActionResults(ImmutableMap.of("foo", Action.Result.success("EXECUTING"))))
+      execControl.promiseOf(new ActionResults(ImmutableMap.of("foo", ActionResult.success("EXECUTING"))))
     }
 
     then:

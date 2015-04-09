@@ -17,6 +17,7 @@
 package r.p.pattern
 
 import r.p.exec.Action
+import r.p.exec.ActionResult
 import r.p.exec.ActionResults
 import ratpack.exec.ExecResult
 import ratpack.registry.Registries
@@ -66,7 +67,7 @@ class ParallelSpec extends Specification {
   def "one action generates one response"() {
     given:
     def actions = [
-      Action.of("foo") { execControl -> execControl.promise { fulfiller -> fulfiller.success(Action.Result.success())}}
+      Action.of("foo") { execControl -> execControl.promise { fulfiller -> fulfiller.success(ActionResult.success())}}
     ]
 
     when:
@@ -77,13 +78,13 @@ class ParallelSpec extends Specification {
     then:
     ActionResults actionResults = result.getValue()
     actionResults.results.size() == 1
-    actionResults.results.get("foo") == Action.Result.success()
+    actionResults.results.get("foo") == ActionResult.success()
   }
 
   def "successful action and failed action generates two responses"() {
     given:
     def actions = [
-      Action.of("foo") { execControl -> execControl.promise { fulfiller -> fulfiller.success(Action.Result.success())}},
+      Action.of("foo") { execControl -> execControl.promise { fulfiller -> fulfiller.success(ActionResult.success())}},
       Action.of("bar") { execControl -> throw new IOException("bar exception") }
     ]
 
@@ -95,7 +96,7 @@ class ParallelSpec extends Specification {
     then:
     ActionResults actionResults = result.getValue()
     actionResults.results.size() == 2
-    actionResults.results.get("foo") == Action.Result.success()
+    actionResults.results.get("foo") == ActionResult.success()
     with(actionResults.results.get("bar")) {
       code == "100"
       message == "bar exception"
@@ -111,7 +112,7 @@ class ParallelSpec extends Specification {
       actions.add(Action.of("foo_$i") { execControl ->
         execControl.blocking {
           releaser.await()
-          Action.Result.success("SUCCESS")
+          ActionResult.success("SUCCESS")
         }
       })
     }

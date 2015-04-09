@@ -17,6 +17,7 @@
 package r.p.pattern
 
 import r.p.exec.Action
+import r.p.exec.ActionResult
 import r.p.exec.ActionResults
 import r.p.exec.TypedAction
 import ratpack.exec.ExecControl
@@ -48,7 +49,10 @@ class FanOutFanInSpec extends Specification {
     String getName() { return name }
 
     @Override
-    Promise<Action.Result> exec(ExecControl execControl) throws Exception {
+    Object getData() { return null }
+
+    @Override
+    Promise<ActionResult> exec(ExecControl execControl) throws Exception {
       return execControl.blocking {
         if (waitingFor) {
           waitingFor.await()
@@ -56,7 +60,7 @@ class FanOutFanInSpec extends Specification {
         if (finalizing) {
           finalizing.countDown()
         }
-        return Action.Result.success()
+        return ActionResult.success()
       }
     }
   }
@@ -103,7 +107,7 @@ class FanOutFanInSpec extends Specification {
     given:
     def actions = [Action.of("foo", { execControl ->
       execControl.promise { fulfiller ->
-        fulfiller.success(Action.Result.success())}})]
+        fulfiller.success(ActionResult.success())}})]
 
     when:
     Promise<ActionResults> promise = pattern.apply(harness.control, registry, FanOutFanIn.Params.of(actions, null))
@@ -130,7 +134,7 @@ class FanOutFanInSpec extends Specification {
     ActionResults actionResults = result.getValue()
     actionResults
     actionResults.results
-    def nullPointerError = Action.Result.error(new NullPointerException())
+    def nullPointerError = ActionResult.error(new NullPointerException())
     actionResults.results["ACTION_NULL_IDX_0"].code == nullPointerError.code
     actionResults.results["ACTION_NULL_IDX_0"].message == nullPointerError.message
   }
@@ -153,7 +157,7 @@ class FanOutFanInSpec extends Specification {
     ActionResults actionResults = result.getValue()
     actionResults
     actionResults.results
-    actionResults.results["foo"] == Action.Result.success()
+    actionResults.results["foo"] == ActionResult.success()
   }
 
   def "exception thrown from action is handled and provided to finalizer"() {
@@ -197,7 +201,7 @@ class FanOutFanInSpec extends Specification {
   def "counted succeeded and failed actions"() {
     given:
     def actions = [
-      Action.of("foo") { execControl -> execControl.promise { fulfiller -> fulfiller.success(Action.Result.success())}},
+      Action.of("foo") { execControl -> execControl.promise { fulfiller -> fulfiller.success(ActionResult.success())}},
       Action.of("bar") { execControl -> execControl.promise { fulfiller -> fulfiller.error(new IOException())}}
     ]
 

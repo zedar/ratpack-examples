@@ -25,7 +25,7 @@ import static ratpack.jackson.Jackson.json;
 /**
  * Serializes {@link r.p.exec.ActionResults} to {@code JSON} and sends it to the handler {@code response}.
  * <p>
- * This renderer requires {@code ratpack.dependency("jackson")}
+ * This renderer requires {@code ratpack.dependency(jackson)}
  */
 public class ActionResultsRenderer extends RendererSupport<ActionResults> {
   /**

@@ -157,7 +157,7 @@ public class InvokeWithRetry implements Pattern<InvokeWithRetry.Params, ActionRe
    * @param execControl an execution control
    * @param registry the server registry
    * @param params a structure of actions to be executed. Each pattern could have their own configuration of actions
-   * @return
+   * @return the promise for action results
    * @throws Exception
    */
   @Override
@@ -206,22 +206,20 @@ public class InvokeWithRetry implements Pattern<InvokeWithRetry.Params, ActionRe
   }
 
   private void applyWithRetry(ExecControl execControl, Fulfiller<Map<String, ActionResult>> fulfiller, Action action, Map<String, ActionResult> results, AtomicInteger repeatCounter) {
-    execControl.exec().start( execution -> {
-      applyInternal(execution, action)
-        .then(result -> {
-          log.debug("APPLY retry from: {}", repeatCounter.get());
-          results.put(action.getName(), result);
-          if ("0".equals(result.getCode())) {
+    execControl.exec().start( execution -> applyInternal(execution, action)
+      .then(result -> {
+        log.debug("APPLY retry from: {}", repeatCounter.get());
+        results.put(action.getName(), result);
+        if ("0".equals(result.getCode())) {
+          fulfiller.success(results);
+        } else {
+          if (repeatCounter.decrementAndGet() == 0) {
             fulfiller.success(results);
           } else {
-            if (repeatCounter.decrementAndGet() == 0) {
-              fulfiller.success(results);
-            } else {
-              applyWithRetry(execControl, fulfiller, action, results, repeatCounter);
-            }
+            applyWithRetry(execControl, fulfiller, action, results, repeatCounter);
           }
-        });
-    });
+        }
+      }));
   }
 
   private Promise<ActionResult> applyInternal(ExecControl execControl, Action action) {

@@ -65,13 +65,11 @@ public class InvokeWithRetryHandler implements Handler {
 
       if (asyncAction) {
         boolean finalAsyncRetry = asyncRetry;
-        ctx.exec().start( execution -> {
-          pattern.apply(execution, ctx, InvokeWithRetry.Params.of(action, 5, finalAsyncRetry))
-            .then(actionResults -> {
-              // TODO: log and store results for the future
-            });
-        });
-        ctx.render(ctx.promiseOf(new ActionResults(ImmutableMap.<String, ActionResult>of(action.getName(), ActionResult.success("EXECUTING IN BACKGROUND")))));
+        ctx.exec().start( execution -> pattern.apply(execution, ctx, InvokeWithRetry.Params.of(action, 5, finalAsyncRetry))
+          .then(actionResults -> {
+            // TODO: log and store results for the future
+          }));
+        ctx.render(ctx.promiseOf(new ActionResults(ImmutableMap.of(action.getName(), ActionResult.success("EXECUTING IN BACKGROUND")))));
       } else {
         ctx.render(pattern.apply(ctx, ctx, InvokeWithRetry.Params.of(action, 5, asyncRetry)));
       }

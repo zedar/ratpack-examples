@@ -26,12 +26,9 @@ import ratpack.func.Function;
  * Actions are typically used for external services invocation or internal computation logic execution.
  * The results exposed by actions can be reported via HTTP  by a {@link r.p.handling.ExecHandler}.
  * <p>
- * The actual execution is implemented by the {@link #exec(ExecControl)} method, that returns a promise for a {@link r.p.exec.Action.Result}.
+ * The actual execution is implemented by the {@link #exec(ExecControl)} method, that returns a promise for a {@link r.p.exec.ActionResult}.
  * <p>
  * The actions are typically executed by the particular {@link r.p.pattern.Pattern} or combination of patterns.
- *
- * @param <T> input data type processed by the action
- * @param <O> output data that enrich action result
  *
  * @see r.p.handling.ExecHandler
  * @see r.p.pattern.Pattern

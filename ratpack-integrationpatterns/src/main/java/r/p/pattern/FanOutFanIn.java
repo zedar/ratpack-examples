@@ -121,7 +121,7 @@ public class FanOutFanIn implements Pattern<FanOutFanIn.Params, ActionResults> {
       return apply(execControl, registry, actions)
         .flatMap(results -> postAction
           .exec(execControl, results)
-          .mapError(throwable -> new ActionResults(ImmutableMap.<String, ActionResult>of(postAction.getName(), ActionResult.error(throwable)))));
+          .mapError(throwable -> new ActionResults(ImmutableMap.of(postAction.getName(), ActionResult.error(throwable)))));
     } else {
       return apply(execControl, registry, actions);
     }

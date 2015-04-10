@@ -17,7 +17,6 @@
 package r.p.exec;
 
 import com.google.common.collect.ImmutableMap;
-import r.p.exec.Action;
 
 /**
  * A value type representing the result of running multiple actions.

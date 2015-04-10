@@ -158,10 +158,12 @@ class InvokeWithRetrySpec extends Specification {
 
   def "failed action with async retries returns immediatelly"() {
     given:
+    CountDownLatch releaser = new CountDownLatch(1)
     AtomicInteger counter = new AtomicInteger()
     Action action = Action.of("foo") { execControl -> execControl.promise{ fulfiller ->
       int current = counter.incrementAndGet()
       if (current > 2) {
+        releaser.countDown()
         fulfiller.success(ActionResult.success())
       } else {
         fulfiller.error(new IOException("$current"))
@@ -180,6 +182,9 @@ class InvokeWithRetrySpec extends Specification {
       code != "0"
       message == "1"
     }
+
+    releaser.await()
+
     counter.get() == 3
   }
 

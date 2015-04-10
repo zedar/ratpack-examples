@@ -41,19 +41,19 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Result is immediately returned to the caller.
  * Asynchronous retry usually requires correlation id but this should be implemented by custom actions.
  */
-public class InvokeWithRetry implements Pattern<InvokeWithRetry.Params, ActionResults> {
+public class InvokeWithRetry<T,O> implements Pattern<InvokeWithRetry.Params<T,O>, ActionResults<O>> {
 
   /**
    * Parameters necessary for pattern execution.
    *
    * Instances can be created by the static method {@link #of}
    */
-  public static class Params {
-    private final Action action;
+  public static class Params<T,O> {
+    private final Action<T,O> action;
     private final Integer retryCount;
     private final boolean asyncRetry;
 
-    private Params(Action action, Integer retryCount, boolean asyncRetry) {
+    private Params(Action<T,O> action, Integer retryCount, boolean asyncRetry) {
       this.action = action;
       this.retryCount = retryCount;
       this.asyncRetry = asyncRetry;
@@ -64,7 +64,7 @@ public class InvokeWithRetry implements Pattern<InvokeWithRetry.Params, ActionRe
      *
      * @return the action to execute
      */
-    public Action getAction() {
+    public Action<T,O> getAction() {
       return action;
     }
 
@@ -92,8 +92,8 @@ public class InvokeWithRetry implements Pattern<InvokeWithRetry.Params, ActionRe
      * @param action an action to execute
      * @return the structure of pattern parameters
      */
-    public static Params of(final Action action) {
-      return new Params(action, null, false);
+    public static <T,O> Params<T,O> of(final Action<T,O> action) {
+      return new Params<>(action, null, false);
     }
 
     /**
@@ -103,8 +103,8 @@ public class InvokeWithRetry implements Pattern<InvokeWithRetry.Params, ActionRe
      * @param retryCount the number of retries in case of failure
      * @return the structure of pattern parameters
      */
-    public static Params of(final Action action, Integer retryCount) {
-      return new Params(action, retryCount, false);
+    public static <T,O> Params<T,O> of(final Action<T,O> action, Integer retryCount) {
+      return new Params<>(action, retryCount, false);
     }
 
     /**
@@ -115,8 +115,8 @@ public class InvokeWithRetry implements Pattern<InvokeWithRetry.Params, ActionRe
      * @param asyncRetry execute retries synchronously or asynchronously
      * @return the structure of pattern parameters
      */
-    public static Params of(final Action action, Integer retryCount, boolean asyncRetry) {
-      return new Params(action, retryCount, asyncRetry);
+    public static <T,O> Params<T,O> of(final Action<T,O> action, Integer retryCount, boolean asyncRetry) {
+      return new Params<>(action, retryCount, asyncRetry);
     }
   }
 
@@ -161,9 +161,9 @@ public class InvokeWithRetry implements Pattern<InvokeWithRetry.Params, ActionRe
    * @throws Exception
    */
   @Override
-  public Promise<ActionResults> apply(ExecControl execControl, Registry registry, Params params) throws Exception {
+  public Promise<ActionResults<O>> apply(ExecControl execControl, Registry registry, Params<T, O> params) throws Exception {
     if (params.getAction() == null) {
-      return execControl.promiseOf(new ActionResults(ImmutableMap.<String, ActionResult>of()));
+      return execControl.promiseOf(new ActionResults<O>(ImmutableMap.of()));
     }
     int retryCount = params.getRetryCount() != null ? params.getRetryCount() : defaultRetryCount;
     if (params.isAsyncRetry()) {
@@ -173,27 +173,27 @@ public class InvokeWithRetry implements Pattern<InvokeWithRetry.Params, ActionRe
     }
   }
 
-  private Promise<ActionResults> apply(ExecControl execControl, Action action, int retryCount) throws Exception {
-    return execControl.<Map<String, ActionResult>>promise( fulfiller -> {
+  private Promise<ActionResults<O>> apply(ExecControl execControl, Action<T,O> action, int retryCount) throws Exception {
+    return execControl.<Map<String, ActionResult<O>>>promise( fulfiller -> {
       AtomicInteger repeatCounter = new AtomicInteger(retryCount + 1);
-      Map<String, ActionResult> results = Maps.newConcurrentMap();
+      Map<String, ActionResult<O>> results = Maps.newConcurrentMap();
       applyWithRetry(execControl, fulfiller, action, results, repeatCounter);
     })
       .map(ImmutableMap::copyOf)
-      .map(ActionResults::new);
+      .map(ActionResults<O>::new);
   }
 
-  private Promise<ActionResults> applyAsync(ExecControl execControl, Action action, int retryCount) throws Exception {
-    return execControl.<Map<String, ActionResult>>promise( fulfiller -> {
+  private Promise<ActionResults<O>> applyAsync(ExecControl execControl, Action<T,O> action, int retryCount) throws Exception {
+    return execControl.<Map<String, ActionResult<O>>>promise( fulfiller -> {
       AtomicInteger repeatCounter = new AtomicInteger(1);
-      Map<String, ActionResult> results = Maps.newConcurrentMap();
+      Map<String, ActionResult<O>> results = Maps.newConcurrentMap();
       applyWithRetry(execControl, fulfiller, action, results, repeatCounter);
     })
       .map(ImmutableMap::copyOf)
-      .map(ActionResults::new)
+      .map(ActionResults<O>::new)
       .wiretap( result -> {
-        ActionResults actionResults = result.getValue();
-        ActionResult actionResult = actionResults.getResults().get(action.getName());
+        ActionResults<O> actionResults = result.getValue();
+        ActionResult<O> actionResult = actionResults.getResults().get(action.getName());
         if (actionResult != null && !"0".equals(actionResult.getCode())) {
           // execute retries asynchronously
           apply(execControl, action, retryCount)
@@ -205,7 +205,7 @@ public class InvokeWithRetry implements Pattern<InvokeWithRetry.Params, ActionRe
       });
   }
 
-  private void applyWithRetry(ExecControl execControl, Fulfiller<Map<String, ActionResult>> fulfiller, Action action, Map<String, ActionResult> results, AtomicInteger repeatCounter) {
+  private void applyWithRetry(ExecControl execControl, Fulfiller<Map<String, ActionResult<O>>> fulfiller, Action<T,O> action, Map<String, ActionResult<O>> results, AtomicInteger repeatCounter) {
     execControl.exec().start( execution -> applyInternal(execution, action)
       .then(result -> {
         log.debug("APPLY retry from: {}", repeatCounter.get());
@@ -222,7 +222,7 @@ public class InvokeWithRetry implements Pattern<InvokeWithRetry.Params, ActionRe
       }));
   }
 
-  private Promise<ActionResult> applyInternal(ExecControl execControl, Action action) {
+  private Promise<ActionResult<O>> applyInternal(ExecControl execControl, Action<T,O> action) {
     try {
       return action.exec(execControl).mapError(ActionResult::error);
     } catch (Exception ex) {

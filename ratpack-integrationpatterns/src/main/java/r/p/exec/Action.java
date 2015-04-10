@@ -33,7 +33,7 @@ import ratpack.func.Function;
  * @see r.p.handling.ExecHandler
  * @see r.p.pattern.Pattern
  */
-public interface Action {
+public interface Action<T,O> {
   /**
    * The <b>unique</b> name of the action.
    * <p>
@@ -48,7 +48,7 @@ public interface Action {
    *
    * @return the action data
    */
-  Object getData();
+  T getData();
 
   /**
    * Executes the action, providing a promise for the result.
@@ -61,7 +61,7 @@ public interface Action {
    * @return a promise for the result
    * @throws Exception any
    */
-  Promise<ActionResult> exec(ExecControl execControl) throws Exception;
+  Promise<ActionResult<O>> exec(ExecControl execControl) throws Exception;
 
   /**
    * Factory for action implementation.
@@ -70,16 +70,16 @@ public interface Action {
    * @param func an action implementation
    * @return the named action implementation
    */
-  public static Action of(String name, Function<? super ExecControl, Promise<ActionResult>> func) {
-    return new Action() {
+  public static <T,O> Action<T,O> of(String name, Function<? super ExecControl, Promise<ActionResult<O>>> func) {
+    return new Action<T,O>() {
       @Override
       public String getName() { return name; }
 
       @Override
-      public Object getData() { return null; }
+      public T getData() { return null; }
 
       @Override
-      public Promise<ActionResult> exec(ExecControl execControl) throws Exception {
+      public Promise<ActionResult<O>> exec(ExecControl execControl) throws Exception {
         return func.apply(execControl);
       }
     };
@@ -93,16 +93,16 @@ public interface Action {
    * @param func an action implementation
    * @return the named action implementation
    */
-  public static Action of(String name, Object data, Function<? super ExecControl, Promise<ActionResult>> func) {
-    return new Action() {
+  public static <T,O> Action<T,O> of(String name, T data, Function<? super ExecControl, Promise<ActionResult<O>>> func) {
+    return new Action<T,O>() {
       @Override
       public String getName() { return name; }
 
       @Override
-      public Object getData() { return data; }
+      public T getData() { return data; }
 
       @Override
-      public Promise<ActionResult> exec(ExecControl execControl) throws Exception {
+      public Promise<ActionResult<O>> exec(ExecControl execControl) throws Exception {
         return func.apply(execControl);
       }
     };

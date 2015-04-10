@@ -23,15 +23,15 @@ import ratpack.api.Nullable;
  * <p>
  * Instances can be create by one of the static methods.
  */
-public class ActionResult {
-  private static final ActionResult NO_ERROR = new ActionResult("0", null);
-
+public class ActionResult<T> {
   private final String code;
   private final String message;
+  private T data;
 
-  private ActionResult(String code, String message) {
+  private ActionResult(String code, String message, T data) {
     this.code = code;
     this.message = message;
+    this.data = data;
   }
 
   /**
@@ -52,11 +52,19 @@ public class ActionResult {
   public String getMessage() { return message; }
 
   /**
+   * A data returned as action results
+   *
+   * @return the data associated with the given action result
+   */
+  @Nullable
+  public T getData() { return data; }
+
+  /**
    * Creates a successful result, with no message.
    *
    * @return a successful result, with no message.
    */
-  public static ActionResult success() { return NO_ERROR; }
+  public static <T> ActionResult<T> success() { return new ActionResult<>("0", null, null); }
 
   /**
    * Creates successful result, with the given message.
@@ -64,7 +72,24 @@ public class ActionResult {
    * @param message a message to accompany the result
    * @return a successful result, with the given message
    */
-  public static ActionResult success(String message) { return new ActionResult("0", message); }
+  public static <T> ActionResult<T> success(String message) { return new ActionResult<>("0", message, null); }
+
+  /**
+   * Creates successful result with the data assigned
+   * @param data a data accompany the result
+   * @param <T> a type of accompanying data
+   * @return a successful result
+   */
+  public static <T> ActionResult<T> success(T data) { return new ActionResult<>("0", null, data); }
+
+  /**
+   * Creates successful result with the given message and data
+   * @param message a message to accompany the result
+   * @param data a data to accompany the result
+   * @param <T> a type of accompanying data
+   * @return a successful result
+   */
+  public static <T> ActionResult<T> success(String message, T data) { return new ActionResult<>("0", message, data); }
 
   /**
    * Creates an error result, with the given message.
@@ -73,7 +98,7 @@ public class ActionResult {
    * @param message a message to accompany the result
    * @return an failed result, with the given message
    */
-  public static ActionResult error(String code, String message) { return new ActionResult(code, message); }
+  public static <T> ActionResult<T> error(String code, String message) { return new ActionResult<>(code, message, null); }
 
   /**
    * Creates an error result, with the given exception.
@@ -82,5 +107,5 @@ public class ActionResult {
    * @param error an exception thrown during action exception
    * @return an failed result, with the given error
    */
-  public static ActionResult error(Throwable error) { return new ActionResult("100", error.getMessage()); }
+  public static <T> ActionResult<T> error(Throwable error) { return new ActionResult<>("100", error.getMessage(), null); }
 }

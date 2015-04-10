@@ -111,7 +111,7 @@ public class FanOutFanIn implements Pattern<FanOutFanIn.Params, ActionResults> {
    * @throws Exception any
    */
   @Override
-  public Promise<ActionResults> apply(ExecControl execControl, Registry registry, Params params) throws Exception {
+  public Promise<ActionResults<ActionResults>> apply(ExecControl execControl, Registry registry, Params params) throws Exception {
     Objects.requireNonNull(params.getThenAction(), "Action for Fan-in is required");
     return apply(execControl, registry, params.getActions(), params.getThenAction());
   }

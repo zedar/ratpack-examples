@@ -23,15 +23,15 @@ import com.google.common.collect.ImmutableMap;
  *
  * @see r.p.handling.ExecHandler
  */
-public class ActionResults {
-  private final ImmutableMap<String, ActionResult> results;
+public class ActionResults<O> {
+  private final ImmutableMap<String, ActionResult<O>> results;
 
   /**
    * Constructor
    *
    * @param results immutable map of action name to its result
    */
-  public ActionResults(ImmutableMap<String, ActionResult> results) {
+  public ActionResults(ImmutableMap<String, ActionResult<O>> results) {
     this.results = results;
   }
 
@@ -40,5 +40,5 @@ public class ActionResults {
    *
    * @return the results
    */
-  public ImmutableMap<String, ActionResult> getResults() { return results; }
+  public ImmutableMap<String, ActionResult<O>> getResults() { return results; }
 }

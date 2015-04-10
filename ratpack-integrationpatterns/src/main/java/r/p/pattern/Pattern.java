@@ -16,6 +16,7 @@
 
 package r.p.pattern;
 
+import r.p.exec.ActionResults;
 import ratpack.exec.ExecControl;
 import ratpack.exec.Promise;
 import ratpack.registry.Registry;

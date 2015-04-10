@@ -101,7 +101,7 @@ public class Parallel implements Pattern<Parallel.Params, ActionResults> {
    * @throws Exception any
    */
   @Override
-  public Promise<ActionResults> apply(ExecControl execControl, Registry registry, Params params) throws Exception {
+  public Promise<ActionResults<ActionResults>> apply(ExecControl execControl, Registry registry, Params params) throws Exception {
     return apply(execControl, params.getActions());
   }
 

@@ -41,84 +41,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Result is immediately returned to the caller.
  * Asynchronous retry usually requires correlation id but this should be implemented by custom actions.
  */
-public class InvokeWithRetry<T,O> implements Pattern<InvokeWithRetry.Params<T,O>, ActionResults<O>> {
-
-  /**
-   * Parameters necessary for pattern execution.
-   *
-   * Instances can be created by the static method {@link #of}
-   */
-  public static class Params<T,O> {
-    private final Action<T,O> action;
-    private final Integer retryCount;
-    private final boolean asyncRetry;
-
-    private Params(Action<T,O> action, Integer retryCount, boolean asyncRetry) {
-      this.action = action;
-      this.retryCount = retryCount;
-      this.asyncRetry = asyncRetry;
-    }
-
-    /**
-     * Action to execute.
-     *
-     * @return the action to execute
-     */
-    public Action<T,O> getAction() {
-      return action;
-    }
-
-    /**
-     * Maximum number of retries, may be {@code null}
-     * <p>
-     * If it is not provided default retry count is used defined in {@link r.p.pattern.PatternsModule.Config#defaultRetryCount}
-     *
-     * @return the retry count for the given action
-     */
-    @Nullable
-    public Integer getRetryCount() {
-      return retryCount;
-    }
-
-    /**
-     * Are action retries executed synchronously or asynchronously?
-     *
-     * @return {@code true} if retries are executed asynchronously.
-     */
-    public boolean isAsyncRetry() { return asyncRetry; }
-
-    /**
-     * Creates pattern parameters with default retry count and synchronous, while non-blocking retries.
-     * @param action an action to execute
-     * @return the structure of pattern parameters
-     */
-    public static <T,O> Params<T,O> of(final Action<T,O> action) {
-      return new Params<>(action, null, false);
-    }
-
-    /**
-     * Creates pattern parameters. Retries are executed synchronously, while still they are non-blocking.
-     *
-     * @param action an action to execute
-     * @param retryCount the number of retries in case of failure
-     * @return the structure of pattern parameters
-     */
-    public static <T,O> Params<T,O> of(final Action<T,O> action, Integer retryCount) {
-      return new Params<>(action, retryCount, false);
-    }
-
-    /**
-     * Creates pattern parameters.
-     *
-     * @param action an action to execute
-     * @param retryCount the number of retries in case of failure
-     * @param asyncRetry execute retries synchronously or asynchronously
-     * @return the structure of pattern parameters
-     */
-    public static <T,O> Params<T,O> of(final Action<T,O> action, Integer retryCount, boolean asyncRetry) {
-      return new Params<>(action, retryCount, asyncRetry);
-    }
-  }
+public class InvokeWithRetry<T,O> {
 
   private static final Logger log = LoggerFactory.getLogger(InvokeWithRetry.class);
 
@@ -145,35 +68,50 @@ public class InvokeWithRetry<T,O> implements Pattern<InvokeWithRetry.Params<T,O>
    *
    * @return the name of the pattern
    */
-  @Override
   public String getName() { return PATTERN_NAME; }
+
+  public Promise<ActionResults<O>> apply(ExecControl execControl, Registry registry, Action<T,O> action) throws Exception {
+    return apply(execControl, registry, action, null, null);
+  }
+
+  public Promise<ActionResults<O>> apply(ExecControl execControl, Registry registry, Action<T,O> action, Integer actionRetryCount) throws Exception {
+    return apply(execControl, registry, action, actionRetryCount, null);
+  }
 
   /**
    * Executes {@code action} and if it fails retries its execution given number of times.
    * <p>
    * Default retry could be set as {@link r.p.pattern.PatternsModule.Config#defaultRetryCount} but could be overridden as
-   * {@link InvokeWithRetry.Params#retryCount}.
+   * {@code actionRetryCount}
    *
    * @param execControl an execution control
    * @param registry the server registry
-   * @param params a structure of actions to be executed. Each pattern could have their own configuration of actions
    * @return the promise for action results
    * @throws Exception
    */
-  @Override
-  public Promise<ActionResults<O>> apply(ExecControl execControl, Registry registry, Params<T, O> params) throws Exception {
-    if (params.getAction() == null) {
+  public Promise<ActionResults<O>> apply(ExecControl execControl,
+                                         Registry registry,
+                                         Action<T,O> action,
+                                         Integer actionRetryCount,
+                                         Boolean actionAsyncRetry) throws Exception {
+    if (action == null) {
       return execControl.promiseOf(new ActionResults<O>(ImmutableMap.of()));
     }
-    int retryCount = params.getRetryCount() != null ? params.getRetryCount() : defaultRetryCount;
-    if (params.isAsyncRetry()) {
-      return applyAsync(execControl, params.getAction(), retryCount);
+
+    int retryCount = actionRetryCount != null ? actionRetryCount : defaultRetryCount;
+    boolean asyncRetry = actionAsyncRetry != null ? actionAsyncRetry : false;
+
+    if (asyncRetry) {
+      return applyAsync(execControl, action, retryCount);
     } else {
-      return apply(execControl, params.getAction(), retryCount);
+      return apply(execControl, action, retryCount);
     }
   }
 
-  private Promise<ActionResults<O>> apply(ExecControl execControl, Action<T,O> action, int retryCount) throws Exception {
+  public Promise<ActionResults<O>> apply(ExecControl execControl,
+                                         Action<T,O> action,
+                                         Integer retryCount) throws Exception {
+
     return execControl.<Map<String, ActionResult<O>>>promise( fulfiller -> {
       AtomicInteger repeatCounter = new AtomicInteger(retryCount + 1);
       Map<String, ActionResult<O>> results = Maps.newConcurrentMap();

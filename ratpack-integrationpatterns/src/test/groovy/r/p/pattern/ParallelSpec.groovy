@@ -36,8 +36,8 @@ class ParallelSpec extends Specification {
   Registry registry
 
   def setup() {
-    registry = Registries.just(new Parallel())
-    pattern = registry.get(Parallel.class)
+    registry = Registries.empty()
+    pattern = new Parallel()
   }
 
   def "pattern name is defined"() {
@@ -54,8 +54,8 @@ class ParallelSpec extends Specification {
     def actions = []
 
     when:
-    ExecResult<ActionResults> result = harness.yield { execControl ->
-      pattern.apply(execControl, registry, Parallel.Params.of(actions))
+    ExecResult<ActionResults<String>> result = harness.yield { execControl ->
+      pattern.apply(execControl, registry, actions)
     }
 
     then:
@@ -67,36 +67,40 @@ class ParallelSpec extends Specification {
   def "one action generates one response"() {
     given:
     def actions = [
-      Action.of("foo") { execControl -> execControl.promise { fulfiller -> fulfiller.success(ActionResult.success())}}
+      Action.of("foo", "data") { execControl -> execControl.promise { fulfiller -> fulfiller.success(ActionResult.success())}}
     ]
 
     when:
-    ExecResult<ActionResults> result = harness.yield { execControl ->
-      pattern.apply(execControl, registry, Parallel.Params.of(actions))
+    ExecResult<ActionResults<String>> result = harness.yield { execControl ->
+      pattern.apply(execControl, registry, actions)
     }
 
     then:
-    ActionResults actionResults = result.getValue()
+    ActionResults<String> actionResults = result.getValue()
     actionResults.results.size() == 1
-    actionResults.results.get("foo") == ActionResult.success()
+    with(actionResults.results.get("foo")) {
+      code == "0"
+    }
   }
 
   def "successful action and failed action generates two responses"() {
     given:
     def actions = [
-      Action.of("foo") { execControl -> execControl.promise { fulfiller -> fulfiller.success(ActionResult.success())}},
-      Action.of("bar") { execControl -> throw new IOException("bar exception") }
+      Action.of("foo", "data") { execControl -> execControl.promise { fulfiller -> fulfiller.success(ActionResult.success())}},
+      Action.of("bar", "data") { execControl -> throw new IOException("bar exception") }
     ]
 
     when:
-    ExecResult<ActionResults> result = harness.yield { execControl ->
-      pattern.apply(execControl, registry, Parallel.Params.of(actions))
+    ExecResult<ActionResults<String>> result = harness.yield { execControl ->
+      pattern.apply(execControl, registry, actions)
     }
 
     then:
-    ActionResults actionResults = result.getValue()
+    ActionResults<String> actionResults = result.getValue()
     actionResults.results.size() == 2
-    actionResults.results.get("foo") == ActionResult.success()
+    with(actionResults.results.get("foo")) {
+      code == "0"
+    }
     with(actionResults.results.get("bar")) {
       code == "100"
       message == "bar exception"
@@ -109,7 +113,7 @@ class ParallelSpec extends Specification {
     CountDownLatch releaser = new CountDownLatch(1)
 
     for (int i = 0; i < 10; i++) {
-      actions.add(Action.of("foo_$i") { execControl ->
+      actions.add(Action.of("foo_$i", "data") { execControl ->
         execControl.blocking {
           releaser.await()
           ActionResult.success("SUCCESS")
@@ -120,12 +124,12 @@ class ParallelSpec extends Specification {
     when:
     releaser.countDown()
 
-    ExecResult<ActionResults> result = harness.yield { execControl ->
-      pattern.apply(execControl, registry, Parallel.Params.of(actions))
+    ExecResult<ActionResults<String>> result = harness.yield { execControl ->
+      pattern.apply(execControl, registry, actions)
     }
 
     then:
-    ActionResults actionResults = result.getValue()
+    ActionResults<String> actionResults = result.getValue()
     actionResults.results.size() == 10
 
     for (int i = 0; i < 10; i++) {

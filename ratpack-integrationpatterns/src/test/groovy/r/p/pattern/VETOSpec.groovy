@@ -19,13 +19,16 @@ package r.p.pattern
 import r.p.exec.Action
 import r.p.exec.ActionResult
 import r.p.exec.ActionResults
+import ratpack.exec.ExecControl
 import ratpack.exec.ExecResult
+import ratpack.exec.Promise
 import ratpack.registry.Registries
 import ratpack.registry.Registry
 import ratpack.test.exec.ExecHarness
 import spock.lang.AutoCleanup
 import spock.lang.IgnoreRest
 import spock.lang.Specification
+import sun.invoke.util.VerifyAccess
 
 class VETOSpec extends Specification {
 
@@ -35,43 +38,68 @@ class VETOSpec extends Specification {
     String value3
   }
 
+  static class VerifyAction implements Action<RequestData,RequestData> {
+    RequestData data
+
+    @Override
+    String getName() { return "verify" }
+
+    @Override
+    Promise<ActionResult<RequestData>> exec(ExecControl execControl) throws Exception {
+      return execControl.promise { fulfiller ->
+        if (!data.value1 || !data.value2) {
+          fulfiller.error(new MissingFormatArgumentException("alpha or beta"))
+        } else {
+          fulfiller.success(ActionResult.success(data))
+        }
+      }
+    }
+  }
+
+  static class EnrichAction implements Action<RequestData,RequestData> {
+    RequestData data
+    @Override
+    String getName() { return "enrich" }
+
+    @Override
+    Promise<ActionResult<RequestData>> exec(ExecControl execControl) throws Exception {
+      return execControl.promise{ fulfiller ->
+        data.value3 = "value3"
+        fulfiller.success(ActionResult.success(data))
+      }
+    }
+  }
+
   @AutoCleanup
   ExecHarness harness = ExecHarness.harness()
   Registry registry
 
   def setup() {
-    registry = Registries.just(new InvokeWithRetry(0))
+    registry = Registries.empty()
   }
 
   @IgnoreRest
   def "verify, enrich, transform and operate"() {
     given:
     RequestData requestData = [value1: "value1", value2: "value2"]
-    InvokeWithRetry pattern = registry.get(InvokeWithRetry.class)
-    Action verify = Action.of("verify", requestData) { execControl -> execControl.promise { fulfiller ->
-      if (!requestData.value1 || !requestData.value2) {
-        fulfiller.error(new MissingFormatArgumentException("alpha or beta"))
-      } else {
-        fulfiller.success(ActionResult.success())
-      }
-    }}
-    Action enrich = Action.of("enrich", requestData) { execControl -> execControl.promise { fulfiller ->
-      requestData.value3 = "value3"
-      fulfiller.success(ActionResult.success())
-    }}
+    InvokeWithRetry pattern = new InvokeWithRetry(0)
+    VerifyAction verifyAction = new VerifyAction()
+    verifyAction.data = requestData
+    EnrichAction enrichAction = new EnrichAction()
 
     when:
-    ExecResult<ActionResults> result = harness.yield { execControl ->
-      pattern.apply(execControl, registry, InvokeWithRetry.Params.of(verify))
+    ExecResult<ActionResults<RequestData>> result = harness.yield { execControl ->
+      pattern.apply(execControl, registry, verifyAction)
         .flatMap { actionResults ->
-          pattern.apply(execControl, registry, InvokeWithRetry.Params.of(enrich))
+          enrichAction.data = actionResults.results["verify"].data
+          pattern.apply(execControl, registry, enrichAction)
         }
       }
 
     then:
-    ActionResults actionResults = result.getValue()
+    ActionResults<RequestData> actionResults = result.getValue()
     actionResults.results.size() == 1
-    with(requestData) {
+    with(actionResults.results["enrich"].data) {
       value1 == "value1"
       value2 == "value2"
       value3 == "value3"

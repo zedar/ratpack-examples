@@ -40,8 +40,8 @@ class InvokeWithRetrySpec extends Specification {
   Registry registry
 
   def setup() {
-    registry = Registries.just(new InvokeWithRetry(DEFAULT_RETRY_COUNT))
-    pattern = registry.get(InvokeWithRetry.class)
+    registry = Registries.empty()
+    pattern = new InvokeWithRetry(DEFAULT_RETRY_COUNT)
   }
 
   def "pattern name is defined"() {
@@ -56,7 +56,7 @@ class InvokeWithRetrySpec extends Specification {
   def "no action generates empty result"() {
     when:
     ExecResult<ActionResults> result = harness.yield { execControl ->
-      pattern.apply(execControl, registry, InvokeWithRetry.Params.of(null))
+      pattern.apply(execControl, registry, null)
     }
 
     then:
@@ -67,18 +67,18 @@ class InvokeWithRetrySpec extends Specification {
   def "successful action does not retry"() {
     given:
     AtomicInteger counter = new AtomicInteger()
-    Action action = Action.of("foo") { execControl -> execControl.promise{ fulfiller ->
+    Action<String,String> action = Action.of("foo", "data") { execControl -> execControl.promise{ fulfiller ->
       counter.incrementAndGet()
       fulfiller.success(ActionResult.success())
     }}
 
     when:
-    ExecResult<ActionResults> result = harness.yield { execControl ->
-      pattern.apply(execControl, registry, InvokeWithRetry.Params.of(action))
+    ExecResult<ActionResults<String>> result = harness.yield { execControl ->
+      pattern.apply(execControl, registry, action)
     }
 
     then:
-    ActionResults actionResults = result.getValue()
+    ActionResults<String> actionResults = result.getValue()
     actionResults.results.size() == 1
     with(actionResults.results["foo"]) {
       code == "0"
@@ -89,18 +89,18 @@ class InvokeWithRetrySpec extends Specification {
   def "failed action retries default number of times"() {
     given:
     AtomicInteger counter = new AtomicInteger()
-    Action action = Action.of("foo") { execControl -> execControl.promise{ fulfiller ->
+    Action<String,String> action = Action.of("foo", "data") { execControl -> execControl.promise{ fulfiller ->
       int current = counter.incrementAndGet()
       fulfiller.error(new IOException("Failure $current"))
     }}
 
     when:
-    ExecResult<ActionResults> result = harness.yield { execControl ->
-      pattern.apply(execControl, registry, InvokeWithRetry.Params.of(action))
+    ExecResult<ActionResults<String>> result = harness.yield { execControl ->
+      pattern.apply(execControl, registry, action)
     }
 
     then:
-    ActionResults actionResults = result.getValue()
+    ActionResults<String> actionResults = result.getValue()
     actionResults.results.size() == 1
     counter.get() == (DEFAULT_RETRY_COUNT + 1)
     with(actionResults.results["foo"]) {
@@ -111,18 +111,18 @@ class InvokeWithRetrySpec extends Specification {
   def "failed action retries custom number of times"() {
     given:
     AtomicInteger counter = new AtomicInteger()
-    Action action = Action.of("foo") { execControl -> execControl.promise{ fulfiller ->
+    Action<String,String> action = Action.of("foo", "data") { execControl -> execControl.promise{ fulfiller ->
       int current = counter.incrementAndGet()
       fulfiller.error(new IOException("Failure $current"))
     }}
 
     when:
-    ExecResult<ActionResults> result = harness.yield { execControl ->
-      pattern.apply(execControl, registry, InvokeWithRetry.Params.of(action, DEFAULT_RETRY_COUNT + 3))
+    ExecResult<ActionResults<String>> result = harness.yield { execControl ->
+      pattern.apply(execControl, registry, action, DEFAULT_RETRY_COUNT + 3)
     }
 
     then:
-    ActionResults actionResults = result.getValue()
+    ActionResults<String> actionResults = result.getValue()
     actionResults.results.size() == 1
     counter.get() == DEFAULT_RETRY_COUNT + 3 + 1
     with(actionResults.results["foo"]) {
@@ -133,7 +133,7 @@ class InvokeWithRetrySpec extends Specification {
   def "successful action after 2 retries stops execution"() {
     given:
     AtomicInteger counter = new AtomicInteger()
-    Action action = Action.of("foo") { execControl -> execControl.promise{ fulfiller ->
+    Action<String,String> action = Action.of("foo") { execControl -> execControl.promise{ fulfiller ->
       int current = counter.incrementAndGet()
       if (current >= 3) {
         fulfiller.success(ActionResult.success())
@@ -143,12 +143,12 @@ class InvokeWithRetrySpec extends Specification {
     }}
 
     when:
-    ExecResult<ActionResults> result = harness.yield { execControl ->
-      pattern.apply(execControl, registry, InvokeWithRetry.Params.of(action, DEFAULT_RETRY_COUNT + 10))
+    ExecResult<ActionResults<String>> result = harness.yield { execControl ->
+      pattern.apply(execControl, registry, action, DEFAULT_RETRY_COUNT + 10)
     }
 
     then:
-    ActionResults actionResults = result.getValue()
+    ActionResults<String> actionResults = result.getValue()
     actionResults.results.size() == 1
     counter.get() == 3
     with(actionResults.results["foo"]) {
@@ -160,7 +160,7 @@ class InvokeWithRetrySpec extends Specification {
     given:
     CountDownLatch releaser = new CountDownLatch(1)
     AtomicInteger counter = new AtomicInteger()
-    Action action = Action.of("foo") { execControl -> execControl.promise{ fulfiller ->
+    Action<String,String> action = Action.of("foo") { execControl -> execControl.promise{ fulfiller ->
       int current = counter.incrementAndGet()
       if (current > 2) {
         releaser.countDown()
@@ -171,12 +171,12 @@ class InvokeWithRetrySpec extends Specification {
     }}
 
     when:
-    ExecResult<ActionResults> result = harness.yield { execControl ->
-      pattern.apply(execControl, registry, InvokeWithRetry.Params.of(action, DEFAULT_RETRY_COUNT+10, true /*async retries*/))
+    ExecResult<ActionResults<String>> result = harness.yield { execControl ->
+      pattern.apply(execControl, registry, action, DEFAULT_RETRY_COUNT+10, true /*async retries*/)
     }
 
     then:
-    ActionResults actionResults = result.getValue()
+    ActionResults<String> actionResults = result.getValue()
     actionResults.results.size() == 1
     with(actionResults.results["foo"]) {
       code != "0"
@@ -191,7 +191,7 @@ class InvokeWithRetrySpec extends Specification {
   def "async invoke returns results asynchronously"() {
     given:
     AtomicInteger counter = new AtomicInteger()
-    Action action = Action.of("foo") { execControl -> execControl.promise{ fulfiller ->
+    Action<String,String> action = Action.of("foo") { execControl -> execControl.promise{ fulfiller ->
       int current = counter.incrementAndGet()
       if (current > 2) {
         fulfiller.success(ActionResult.success())
@@ -204,10 +204,10 @@ class InvokeWithRetrySpec extends Specification {
 
     when:
     ActionResults finalActionResults
-    ExecResult<ActionResults> result = harness.yield { execControl ->
+    ExecResult<ActionResults<String>> result = harness.yield { execControl ->
       execControl.exec().start { execution ->
         releaser1.await()
-        pattern.apply(execution, registry, InvokeWithRetry.Params.of(action, DEFAULT_RETRY_COUNT+10))
+        pattern.apply(execution, registry, action, DEFAULT_RETRY_COUNT+10)
           .then { actionResults ->
             finalActionResults = actionResults
             releaser2.countDown()
@@ -217,7 +217,7 @@ class InvokeWithRetrySpec extends Specification {
     }
 
     then:
-    ActionResults actionResults = result.getValue()
+    ActionResults<String> actionResults = result.getValue()
     actionResults.results.size() == 1
     with(actionResults.results["foo"]) {
       code == "0"

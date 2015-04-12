@@ -12,7 +12,7 @@ import ratpack.exec.Promise;
  * Blocking operation will be performed on a thread from a special thread pool and not on threads from main
  * compute event loop.
  */
-public class LongBlockingIOAction implements Action {
+public class LongBlockingIOAction implements Action<String,String> {
   private final String name;
   private final String data;
 
@@ -25,10 +25,10 @@ public class LongBlockingIOAction implements Action {
   public String getName() { return name; }
 
   @Override
-  public Object getData() { return data; }
+  public String getData() { return data; }
 
   @Override
-  public Promise<ActionResult> exec(ExecControl execControl) throws Exception {
+  public Promise<ActionResult<String>> exec(ExecControl execControl) throws Exception {
     return execControl.blocking(() -> {
       Thread.sleep(3000);
       return ActionResult.success(data);

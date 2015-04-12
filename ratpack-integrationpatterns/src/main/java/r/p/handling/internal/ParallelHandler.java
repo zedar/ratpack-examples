@@ -36,10 +36,10 @@ public class ParallelHandler implements Handler {
   @Override
   public void handle(Context ctx) throws Exception {
     try {
-      Iterable<Action> actions = new LinkedList<>(Arrays.asList(
+      Iterable<Action<String,String>> actions = new LinkedList<>(Arrays.asList(
         new LongBlockingIOAction("foo", "data"),
         new LongBlockingIOAction("bar", "data"),
-        Action.<String>of("buzz", "data", execControl -> execControl
+        Action.<String,String>of("buzz", "data", execControl -> execControl
           .promise(fulfiller -> {
             throw new IOException("CONTROLLED EXCEPTION");
           })),
@@ -52,8 +52,8 @@ public class ParallelHandler implements Handler {
         new LongBlockingIOAction("foo_6", "data")
       ));
 
-      Parallel pattern = ctx.get(PATTERN_TYPE_TOKEN);
-      ctx.render(pattern.apply(ctx, ctx, Parallel.Params.of(actions)));
+      Parallel<String,String> pattern = new Parallel<>();
+      ctx.render(pattern.apply(ctx, ctx, actions));
     } catch (Exception ex) {
       ctx.clientError(404);
     }

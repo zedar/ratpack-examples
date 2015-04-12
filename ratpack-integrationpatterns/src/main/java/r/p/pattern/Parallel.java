@@ -38,39 +38,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @see r.p.exec.Action
  * @see r.p.pattern.PatternsModule
  */
-public class Parallel implements Pattern<Parallel.Params, ActionResults> {
-
-  /**
-   * Parameters necessary for pattern execution.
-   *
-   * Instances can be created by static method {@link #of}
-   */
-  public static class Params {
-    private final Iterable<? extends Action> actions;
-
-    private Params(final Iterable<? extends Action> actions) {
-      this.actions = actions;
-    }
-
-    /**
-     * The collection of actions to execute.
-     *
-     * @return the collection of actions to execute
-     */
-    public Iterable<? extends Action> getActions() {
-      return actions;
-    }
-
-    /**
-     * Creates the structure of parameters for pattern execustion
-     *
-     * @param actions collection of actions to execute in parallel
-     * @return the structure of parameters for pattern execution
-     */
-    public static Params of(final Iterable<? extends Action> actions) {
-      return new Params(actions);
-    }
-  }
+public class Parallel<T,O> {
 
   /**
    * The name of the pattern that indicates pattern to execute in handler.
@@ -84,7 +52,6 @@ public class Parallel implements Pattern<Parallel.Params, ActionResults> {
    *
    * @return the name of the pattern
    */
-  @Override
   public String getName() { return PATTERN_NAME; }
 
   /**
@@ -96,27 +63,21 @@ public class Parallel implements Pattern<Parallel.Params, ActionResults> {
    *
    * @param execControl an execution control
    * @param registry the server registry
-   * @param params params with collection of actions to execute
    * @return a promise for the results
    * @throws Exception any
    */
-  @Override
-  public Promise<ActionResults<ActionResults>> apply(ExecControl execControl, Registry registry, Params params) throws Exception {
-    return apply(execControl, params.getActions());
-  }
-
-  private Promise<ActionResults> apply(ExecControl execControl, Iterable<? extends Action> actions) throws Exception {
-    Iterator<? extends Action> iterator = actions.iterator();
+  public Promise<ActionResults<O>> apply(ExecControl execControl, Registry registry, Iterable<Action<T,O>> actions) throws Exception {
+    Iterator<Action<T,O>> iterator = actions.iterator();
     if (!iterator.hasNext()) {
-      return execControl.promiseOf(new ActionResults(ImmutableMap.<String, ActionResult>of()));
+      return execControl.promiseOf(new ActionResults<>(ImmutableMap.of()));
     }
 
-    return execControl.<Map<String, ActionResult>>promise(fulfiller -> {
+    return execControl.<Map<String, ActionResult<O>>>promise(fulfiller -> {
       AtomicInteger counter = new AtomicInteger();
-      Map<String, ActionResult> results = Maps.newConcurrentMap();
+      Map<String, ActionResult<O>> results = Maps.newConcurrentMap();
       while (iterator.hasNext()) {
         counter.incrementAndGet();
-        Action action = iterator.next();
+        Action<T,O> action = iterator.next();
         if (action == null || action.getName() == null) {
           int i = counter.decrementAndGet();
           results.put("ACTION_NULL_IDX_" + i, ActionResult.error(new NullPointerException()));
@@ -141,10 +102,10 @@ public class Parallel implements Pattern<Parallel.Params, ActionResults> {
         );
       }
     }).map(ImmutableMap::copyOf)
-      .map(ActionResults::new);
+      .map(ActionResults<O>::new);
   }
 
-  private Promise<ActionResult> apply(ExecControl execControl, Action action) {
+  private Promise<ActionResult<O>> apply(ExecControl execControl, Action<T,O> action) {
     try {
       return action.exec(execControl).mapError(ActionResult::error);
     } catch (Exception ex) {

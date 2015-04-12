@@ -46,10 +46,10 @@ public class FanOutFanInHandler implements Handler {
   @Override
   public void handle(Context ctx) throws Exception {
     try {
-      Iterable<Action> actions = new LinkedList<>(Arrays.asList(
+      Iterable<Action<String,String>> actions = new LinkedList<>(Arrays.asList(
         new LongBlockingIOAction("foo", "data"),
         new LongBlockingIOAction("bar", "data"),
-        Action.<String>of("buzz", "data", execControl -> execControl
+        Action.<String,String>of("buzz", "data", execControl -> execControl
           .promise(fulfiller -> {
             throw new IOException("CONTROLLED EXCEPTION");
           })),
@@ -61,7 +61,7 @@ public class FanOutFanInHandler implements Handler {
         new LongBlockingIOAction("foo_5", "data"),
         new LongBlockingIOAction("foo_6", "data")
       ));
-      TypedAction<ActionResults, ActionResults> mergeResults = TypedAction.of("merge", (execControl, actionResults) ->
+      TypedAction<ActionResults<String>, ActionResults<String>> mergeResults = TypedAction.of("merge", (execControl, actionResults) ->
           execControl.promise(fulfiller -> {
             final int[] counters = {0, 0};
             actionResults.getResults().forEach((name, result) -> {
@@ -73,12 +73,12 @@ public class FanOutFanInHandler implements Handler {
             });
             StringBuilder strB = new StringBuilder();
             strB.append("Succeeded: ").append(counters[0]).append(" Failed: ").append(counters[1]);
-            fulfiller.success(new ActionResults(ImmutableMap.<String, ActionResult>of("COUNTED", ActionResult.error("0", strB.toString()))));
+            fulfiller.success(new ActionResults<>(ImmutableMap.of("COUNTED", ActionResult.error("0", strB.toString()))));
           })
       );
 
-      FanOutFanIn pattern = ctx.get(PATTERN_TYPE_TOKEN);
-      ctx.render(pattern.apply(ctx, ctx, FanOutFanIn.Params.of(actions, mergeResults)));
+      FanOutFanIn<String,String,String> pattern = new FanOutFanIn<>();
+      ctx.render(pattern.apply(ctx, ctx, actions, mergeResults));
     } catch (Exception ex) {
       ctx.clientError(404);
     }

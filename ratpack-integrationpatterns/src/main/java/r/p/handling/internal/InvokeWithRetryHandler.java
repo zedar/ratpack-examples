@@ -22,24 +22,26 @@ import r.p.exec.Action;
 import r.p.exec.ActionResult;
 import r.p.exec.ActionResults;
 import r.p.pattern.InvokeWithRetry;
+import r.p.pattern.PatternsModule;
 import ratpack.handling.Context;
 import ratpack.handling.Handler;
 import ratpack.util.MultiValueMap;
 
 import java.io.IOException;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A handler that shows how <b>InvokeAndRetry</b> pattern works.
  */
 public class InvokeWithRetryHandler implements Handler {
-  private static final TypeToken<InvokeWithRetry> PATTERN_TYPE_TOKEN = TypeToken.of(InvokeWithRetry.class);
+  private static final TypeToken<PatternsModule.Config> PATTERN_CONFIG_TYPE_TOKEN = TypeToken.of(PatternsModule.Config.class);
 
   @Override
   public void handle(Context ctx) throws Exception {
     try {
       AtomicInteger execCounter = new AtomicInteger(0);
-      Action action = Action.<String>of("foo", "data", execControl -> execControl
+      Action<String,String> action = Action.<String, String>of("foo", "data", execControl -> execControl
         .promise( fulfiller -> {
           if (execCounter.incrementAndGet() <= 10) {
             throw new  IOException("FAILED EXECUTION");
@@ -55,7 +57,10 @@ public class InvokeWithRetryHandler implements Handler {
       if ("async".equals(queryAttrs.get("retrymode"))) {
         asyncRetry = true;
       }
-      InvokeWithRetry pattern = ctx.get(PATTERN_TYPE_TOKEN);
+      //InvokeWithRetry pattern = ctx.get(PATTERN_TYPE_TOKEN);
+      PatternsModule.Config patternsConfig = ctx.get(PATTERN_CONFIG_TYPE_TOKEN);
+      Objects.requireNonNull(patternsConfig);
+      InvokeWithRetry<String,String> pattern = new InvokeWithRetry<>(patternsConfig.getDefaultRetryCount());
 
       // check if action should be executed asynchronously (in background)
       boolean asyncAction = false;
@@ -65,13 +70,13 @@ public class InvokeWithRetryHandler implements Handler {
 
       if (asyncAction) {
         boolean finalAsyncRetry = asyncRetry;
-        ctx.exec().start( execution -> pattern.apply(execution, ctx, InvokeWithRetry.Params.of(action, 5, finalAsyncRetry))
+        ctx.exec().start(execution -> pattern.apply(execution, ctx, action, 5, finalAsyncRetry)
           .then(actionResults -> {
             // TODO: log and store results for the future
           }));
-        ctx.render(ctx.promiseOf(new ActionResults(ImmutableMap.of(action.getName(), ActionResult.success("EXECUTING IN BACKGROUND")))));
+        ctx.render(ctx.promiseOf(new ActionResults<>(ImmutableMap.of(action.getName(), ActionResult.success("EXECUTING IN BACKGROUND")))));
       } else {
-        ctx.render(pattern.apply(ctx, ctx, InvokeWithRetry.Params.of(action, 5, asyncRetry)));
+        ctx.render(pattern.apply(ctx, ctx, action, 5, asyncRetry));
       }
     } catch (Exception ex) {
       ctx.clientError(404);

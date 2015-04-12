@@ -19,6 +19,7 @@ package r.p.pattern
 import r.p.exec.Action
 import r.p.exec.ActionResult
 import r.p.exec.ActionResults
+import ratpack.exec.ExecControl
 import ratpack.exec.ExecResult
 import ratpack.registry.Registries
 import ratpack.registry.Registry
@@ -30,6 +31,26 @@ import spock.lang.Specification
 import java.util.concurrent.CountDownLatch
 
 class ParallelSpec extends Specification {
+
+  static interface Request {}
+
+  static class Request1 implements Request {
+    String value1
+    Request1(String value1) { this.value1 = value1 }
+  }
+  static class Request2 implements Request {
+    String value2
+    Request2(String value2) { this.value2 = value2 }
+  }
+  static class Request3 implements Request {
+    String value3
+    Request3(String value3) { this.value3 = value3 }
+  }
+  static class Request4 implements Request {
+    String value4
+    Request4(String value4) { this.value4 = value4 }
+  }
+
   @AutoCleanup
   ExecHarness harness = ExecHarness.harness()
   Parallel pattern
@@ -138,5 +159,33 @@ class ParallelSpec extends Specification {
         message == "SUCCESS"
       }
     }
+  }
+
+  def "parallel requests collect data from different resources"() {
+    given:
+    def actions = [
+      Action.of("requestValue1") { execControl -> execControl.promise { f -> f.success(ActionResult.success(new Request1("value1")))}},
+      Action.of("requestValue2") { execControl -> execControl.promise { f -> f.success(ActionResult.success(new Request2("value2")))}},
+      Action.of("requestValue3") { execControl -> execControl.promise { f -> f.success(ActionResult.success(new Request3("value3")))}},
+      Action.of("requestValue4") { execControl -> execControl.promise { f -> f.success(ActionResult.success(new Request4("value4")))}}
+    ]
+    Parallel<Request,Request> pattern = new Parallel<>()
+
+    when:
+    ExecResult<ActionResults<Request>> result = harness.yield { execControl ->
+      pattern.apply(execControl, registry, actions)
+    }
+
+    then:
+    ActionResults<Request> actionResults = result.getValue()
+    actionResults.results.size() == 4
+    Request1 req1 = (Request1)actionResults.results["requestValue1"].data
+    req1.value1 == "value1"
+    Request2 req2 = (Request2)actionResults.results["requestValue2"].data
+    req2.value2 == "value2"
+    Request3 req3 = (Request3)actionResults.results["requestValue3"].data
+    req3.value3 == "value3"
+    Request4 req4 = (Request4)actionResults.results["requestValue4"].data
+    req4.value4 == "value4"
   }
 }

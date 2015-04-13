@@ -73,6 +73,28 @@ class FanOutFanInSpec extends Specification {
     int failed = 0
   }
 
+  static interface Request {
+  }
+
+  static class Request1 implements Request {
+    String value
+    Request1(String value) { this.value = value }
+  }
+
+  static class Request2 implements Request {
+    String value
+    Request2(String value) { this.value = value }
+  }
+
+  static class Request3 implements Request {
+    String value
+    Request3(String value) { this.value = value }
+  }
+
+  static class Response {
+    String value1, value2, value3, value4
+  }
+
   @AutoCleanup
   ExecHarness harness = ExecHarness.harness()
   FanOutFanIn pattern
@@ -244,5 +266,38 @@ class FanOutFanInSpec extends Specification {
     countedResult
     countedResult.results["counted"].getData().succeded == 4
     countedResult.results["counted"].getData().failed == 0
+  }
+
+  def "fan out requests and collect one response"() {
+    given:
+    def actions = [
+      Action.of("req1") { ec -> ec.promise { f -> f.success(ActionResult.success(new Request1("value1")))}},
+      Action.of("req2") { ec -> ec.promise { f -> f.success(ActionResult.success(new Request2("value2")))}},
+      Action.of("req3") { ec -> ec.promise { f -> f.success(ActionResult.success(new Request3("value3")))}}
+    ]
+    TypedAction<ActionResults<Request>, ActionResults<Response>> finalizer = TypedAction.of("finalizer") { ec, actionResults ->
+      ec.promise { f ->
+        Response resp = new Response()
+        resp.value1 = ((Request1)actionResults.results["req1"].data).value
+        resp.value2 = ((Request2)actionResults.results["req2"].data).value
+        resp.value3 = ((Request3)actionResults.results["req3"].data).value
+        f.success(new ActionResults(ImmutableMap.of("finalizer", ActionResult.success(resp))))
+      }
+    }
+    FanOutFanIn<Request,Request,Response> pattern = new FanOutFanIn<>()
+
+    when:
+    ExecResult<ActionResults<Response>> result = harness.yield { execControl ->
+      pattern.apply(execControl, registry, actions, finalizer) }
+
+    then:
+    ActionResults<Response> actionResults = result.getValue()
+    actionResults
+    with(actionResults.results["finalizer"]) {
+      code == "0"
+      data.value1 == "value1"
+      data.value2 == "value2"
+      data.value3 == "value3"
+    }
   }
 }

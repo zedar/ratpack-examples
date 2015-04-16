@@ -16,6 +16,7 @@
 
 package r.p.pattern
 
+import org.omg.CORBA.Request
 import r.p.exec.Action
 import r.p.exec.ActionResult
 import r.p.exec.ActionResults
@@ -36,6 +37,10 @@ class VETOSpec extends Specification {
     String value1
     String value2
     String value3
+  }
+
+  static class ResponseData {
+    String value
   }
 
   static class VerifyAction implements Action<RequestData,RequestData> {
@@ -78,8 +83,7 @@ class VETOSpec extends Specification {
     registry = Registries.empty()
   }
 
-  @IgnoreRest
-  def "verify, enrich, transform and operate"() {
+  def "verify combined with enrich return combined result"() {
     given:
     RequestData requestData = [value1: "value1", value2: "value2"]
     InvokeWithRetry pattern = new InvokeWithRetry(0)
@@ -103,6 +107,38 @@ class VETOSpec extends Specification {
       value1 == "value1"
       value2 == "value2"
       value3 == "value3"
+    }
+  }
+
+  @IgnoreRest
+  def "verify combined with operate defined with factory methods"() {
+    given:
+    RequestData reqData = [value1: "val1"]
+    InvokeWithRetry<RequestData,RequestData> verify = new InvokeWithRetry<>(0)
+
+    when:
+    ExecResult<ActionResults<ResponseData>> result = harness.yield { ec ->
+      verify.apply(ec, registry, Action.<RequestData,RequestData>of("verify") { ec2 -> ec2.promise { f ->
+        if (!reqData.value1 || !reqData.value2) {
+          f.error(new MissingFormatArgumentException("value1 or value2 is required"))
+        } else {
+          f.success(ActionResult.success(reqData))
+        }
+      }})
+      .flatMap { actionResults ->
+        InvokeWithRetry<RequestData,ResponseData> operate = new InvokeWithRetry<>(3)
+        operate.apply(ec, registry, Action.<RequestData,ResponseData>of("operate") { ec2 -> ec2.promise { f->
+          ResponseData resData = [value: "operate_value"]
+          f.success(ActionResult.success(resData))
+        }})
+      }
+    }
+
+    then:
+    ActionResults<ResponseData> actionResults = result.getValue()
+    actionResults.results.size() == 1
+    with (actionResults.results["operate"].data) {
+      value == "operate_value"
     }
   }
 }

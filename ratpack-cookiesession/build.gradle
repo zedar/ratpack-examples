@@ -1,9 +1,13 @@
 buildscript {
   repositories {
     jcenter()
+    maven {
+      url "file:///Users/zedar/dev/ratpackdev/ratpack-fork/build/localRepo"
+    }
   }
   dependencies {
-    classpath "io.ratpack:ratpack-gradle:0.9.15"
+    //classpath "io.ratpack:ratpack-gradle:0.9.15"
+    classpath "io.ratpack:ratpack-gradle:0.9.16"
     classpath "com.github.jengelman.gradle.plugins:shadow:1.2.1"
   }
 }
@@ -14,6 +18,9 @@ apply plugin: "idea"
 
 repositories {
   jcenter()
+  maven {
+    url "file:///Users/zedar/dev/ratpackdev/ratpack-fork/build/localRepo"
+  }
 }
 
 dependencies {

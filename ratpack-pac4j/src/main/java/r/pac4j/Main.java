@@ -26,7 +26,7 @@ public class Main {
         .serverConfig(ServerConfig.findBaseDir("application.properties"))
         .registry(Guice.registry(b -> b
             // --- Add cookie session with java serialization of values of session entries
-            .add(ClientSideSessionsModule.class, config -> {
+            .module(ClientSideSessionsModule.class, config -> {
               config.setSecretKey("aaaaaaaaaaaaaaaa");
               // required to share the same session between app instances (in cluster)
               config.setSecretToken("bbbbbb");
@@ -36,13 +36,16 @@ public class Main {
             // --- Add server side sessions with in-memory storage (works with one server instance only)
             //.add(SessionModule.class)
             //.add(new MapSessionsModule(10, 5))
-            .add(new Pac4jModule<>(
+            .module(new Pac4jModule<>(
               new FormClient("/login", new SimpleTestUsernamePasswordAuthenticator(), new UsernameProfileCreator()),
               new PathAuthorizer()
             ))
-            .add(MarkupTemplateModule.class)
+            .module(MarkupTemplateModule.class)
         ))
         .handlers(chain -> chain
+            .get(ctx -> {
+              ctx.redirect("admin");
+            })
             .get("admin", ctx -> {
               ctx.render("admin page ACCESSED");
             })

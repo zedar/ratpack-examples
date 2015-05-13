@@ -1,48 +1,21 @@
-Ratpack project template
+Example: [ratpack](http://ratpack.io/), [PAC4J](http://www.pac4j.org) and cookie session.
 -----------------------------
 
-You have just created a basic Groovy Ratpack application. It doesn't do much
-at this point, but we have set you up with a standard project structure, a 
-Guice back Registry, simple home page, and Spock for writing tests (because 
-you'd be mad not to use it).
+The user session stored in cookies enables PAC4J to be stateless.
+Every user's request may be directed to any of the ratpack servers in the cluster.
+User once logged in on one server is logged in on the other servers. Up to session expiration.
+This even works when server restarts.
 
-In this project you get:
+The cookie based session allows simplified scaling and fault tolerance.
 
-* A Gradle build file with pre-built Gradle wrapper
-* A tiny home page at src/ratpack/templates/index.html (it's a template)
-* A routing file at src/ratpack/Ratpack.groovy
-* Reloading enabled in build.gradle
-* A standard project structure:
+Run example with the following command
 
-    <proj>
-      |
-      +- src
-          |
-          +- ratpack
-          |     |
-          |     +- Ratpack.groovy
-          |     +- ratpack.properties
-          |     +- public // Static assets in here
-          |          |
-          |          +- images
-          |          +- lib
-          |          +- scripts
-          |          +- styles
-          |
-          +- main
-          |   |
-          |   +- groovy
-                   |
-                   +- // App classes in here!
-          |
-          +- test
-              |
-              +- groovy
-                   |
-                   +- // Spock tests in here!
+  $ ./gradlew run
 
-That's it! You can start the basic app with
+In the browser go to `http://localhost:5050/auth`.
+If user is not authenticated the `http://localhost:5050/login` page should be visible.
+Enter the same login and password (there is very simple user manager used in this example).
 
-    ./gradlew run
+Kill the server. Run it again. Refresh `http://localhost:5050/auth`.
+If session is not expired the `auth` page should be visible without the `login`.
 
-but it's up to you to add the bells, whistles, and meat of the application.

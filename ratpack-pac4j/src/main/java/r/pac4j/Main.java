@@ -30,8 +30,7 @@ public class Main {
               config.setSecretKey("aaaaaaaaaaaaaaaa");
               // required to share the same session between app instances (in cluster)
               config.setSecretToken("bbbbbb");
-
-              config.setValueSerializer(new JavaValueSerializer());
+              // IMPORTANT: JavaValueSerializer is set up as default. And it works very well with pac4j UserProfile class serialization.
             })
             // --- Add server side sessions with in-memory storage (works with one server instance only)
             //.add(SessionModule.class)

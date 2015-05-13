@@ -25,6 +25,15 @@ public class Main {
     RatpackServer.start(server -> server
         .serverConfig(ServerConfig.findBaseDir("application.properties"))
         .registry(Guice.registry(b -> b
+            .module(MarkupTemplateModule.class)
+
+            // --- ratpack 0.9.17 introduced LIFO registries. It is important to define ClientSideSessionsModule after Pac4jModule
+            //      to make SessionStorage object be accessible for Pac4j.
+            .module(new Pac4jModule<>(
+              new FormClient("/login", new SimpleTestUsernamePasswordAuthenticator(), new UsernameProfileCreator()),
+              new PathAuthorizer()
+            ))
+
             // --- Add cookie session with java serialization of values of session entries
             .module(ClientSideSessionsModule.class, config -> {
               config.setSecretKey("aaaaaaaaaaaaaaaa");
@@ -33,14 +42,10 @@ public class Main {
 
               config.setValueSerializer(new JavaValueSerializer());
             })
+
             // --- Add server side sessions with in-memory storage (works with one server instance only)
             //.add(SessionModule.class)
             //.add(new MapSessionsModule(10, 5))
-            .module(new Pac4jModule<>(
-              new FormClient("/login", new SimpleTestUsernamePasswordAuthenticator(), new UsernameProfileCreator()),
-              new PathAuthorizer()
-            ))
-            .module(MarkupTemplateModule.class)
         ))
         .handlers(chain -> chain
             .get(ctx -> {

@@ -3,9 +3,7 @@ buildscript {
     jcenter()
     // additional local repo for testing the latest changes
     maven {
-      //url "file:///Users/zedar/dev/ratpackdev/ratpack-fork/build/localRepo"
-      //url "file:///c/dev/vagrant/test/ratpack-fork/build/localrepo"
-      url "file://c:\\dev\\vagrant\\test\\ratpack-fork\\build\\localrepo"
+      url "file:///Users/zedar/dev/ratpackdev/ratpack-fork/build/localRepo"
     }
   }
   dependencies {
@@ -22,9 +20,7 @@ repositories {
   jcenter()
   // additional local repo for testing the latest changes
   maven {
-    //url "file:///Users/zedar/dev/ratpackdev/ratpack-fork/build/localRepo"
-    //url "file:///c/dev/vagrant/test/ratpack-fork/build/localrepo"
-    url "file://c:\\dev\\vagrant\\test\\ratpack-fork\\build\\localrepo"
+    url "file:///Users/zedar/dev/ratpackdev/ratpack-fork/build/localRepo"
   }
 }
 

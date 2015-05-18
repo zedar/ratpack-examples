@@ -5,6 +5,8 @@ import com.google.common.reflect.ImmutableTypeToInstanceMap;
 import org.pac4j.http.client.FormClient;
 import org.pac4j.http.credentials.SimpleTestUsernamePasswordAuthenticator;
 import org.pac4j.http.profile.UsernameProfileCreator;
+import r.kryo.KryoSerializerModule;
+import r.kryo.KryoValueSerializer;
 import ratpack.groovy.template.MarkupTemplateModule;
 import ratpack.guice.Guice;
 import ratpack.pac4j.Pac4jModule;
@@ -27,24 +29,28 @@ public class Main {
         .registry(Guice.registry(b -> b
             .module(MarkupTemplateModule.class)
 
-            // --- ratpack 0.9.17 introduced LIFO registries. It is important to define ClientSideSessionsModule after Pac4jModule
-            //      to make SessionStorage object be accessible for Pac4j.
+            .module(KryoSerializerModule.class, config -> {
+            })
+
+              // --- ratpack 0.9.17 introduced LIFO registries. It is important to define ClientSideSessionsModule after Pac4jModule
+              //      to make SessionStorage object be accessible for Pac4j.
             .module(new Pac4jModule<>(
               new FormClient("/login", new SimpleTestUsernamePasswordAuthenticator(), new UsernameProfileCreator()),
               new PathAuthorizer()
             ))
 
-            // --- Add cookie session with java serialization of values of session entries
+              // --- Add cookie session with java serialization of values of session entries
             .module(ClientSideSessionsModule.class, config -> {
               config.setSecretKey("aaaaaaaaaaaaaaaa");
               // required to share the same session between app instances (in cluster)
               config.setSecretToken("bbbbbb");
               // IMPORTANT: JavaValueSerializer is set up as default. And it works very well with pac4j UserProfile class serialization.
+              config.setValueSerializer(new KryoValueSerializer());
             })
 
-            // --- Add server side sessions with in-memory storage (works with one server instance only)
-            //.add(SessionModule.class)
-            //.add(new MapSessionsModule(10, 5))
+          // --- Add server side sessions with in-memory storage (works with one server instance only)
+          //.add(SessionModule.class)
+          //.add(new MapSessionsModule(10, 5))
         ))
         .handlers(chain -> chain
             .get(ctx -> {

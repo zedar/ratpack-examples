@@ -19,20 +19,23 @@ package r.p.handling;
 import r.p.handling.internal.FanOutFanInHandler;
 import r.p.handling.internal.InvokeWithRetryHandler;
 import r.p.handling.internal.ParallelHandler;
-import r.p.pattern.FanOutFanIn;
-import r.p.pattern.InvokeWithRetry;
-import r.p.pattern.Parallel;
+import ratpack.sep.exec.FanOutFanIn;
+import ratpack.sep.exec.InvokeWithRetry;
+import ratpack.sep.exec.Parallel;
 import ratpack.handling.Context;
 import ratpack.handling.Handler;
+import ratpack.sep.Action;
+import ratpack.sep.TypedAction;
+import ratpack.sep.exec.Pattern;
 
 /**
- * A handler that executes {@link r.p.exec.Action actions} or {@link r.p.exec.TypedAction typed actions} and renders their results.
+ * A handler that executes {@link Action actions} or {@link TypedAction typed actions} and renders their results.
  * <p>
  * The handler obtains pattern for actions execution from the context's registry.
  *
- * @see r.p.exec.Action
- * @see r.p.exec.TypedAction
- * @see r.p.pattern.Pattern
+ * @see Action
+ * @see TypedAction
+ * @see Pattern
  */
 public class ExecHandler implements Handler {
   private final Handler fanOutFanInHandler = new FanOutFanInHandler();

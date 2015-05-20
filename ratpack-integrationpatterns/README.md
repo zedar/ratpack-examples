@@ -7,7 +7,7 @@ Integration patterns implemented with *Ratpack Promises*
 
 ## Integration Patterns
 
-### [Parallel](https://github.com/zedar/ratpack-examples/blob/master/ratpack-integrationpatterns/src/main/java/r/p/pattern/Parallel.java)
+### [Parallel](https://github.com/zedar/ratpack-examples/blob/master/ratpack-integrationpatterns/src/main/java/ratpack/sep/exec/Parallel.java)
 Execute actions in parallel (without informing each other), collect the results and render the results as *JSON* string.
 Blocking actions should be called as ```execControl.blocking()```, that is performed on separate thread pool and do not
 block main event loop.
@@ -49,7 +49,7 @@ Results of every action execution is returned as renderable (to JSON) ```ActionR
     }
 ````
 
-### [Fan-out/fan-in](https://github.com/zedar/ratpack-examples/blob/master/ratpack-integrationpatterns/src/main/java/r/p/pattern/FanOutFanIn.java)
+### [Fan-out/fan-in](https://github.com/zedar/ratpack-examples/blob/master/ratpack-integrationpatterns/src/main/java/ratpack/sep/exec/FanOutFanIn.java)
 
 Execute actions in parallel (independently), collect the results, apply post processing action and render result as *JSON* output.
 
@@ -112,7 +112,7 @@ is create in order to merge results of actions. In fact ```mergeResults``` actio
     }
 ````
 
-### [Invoke with Retry](https://github.com/zedar/ratpack-examples/blob/master/ratpack-integrationpatterns/src/main/java/r/p/pattern/InvokeWithRetry.java)
+### [Invoke with Retry](https://github.com/zedar/ratpack-examples/blob/master/ratpack-integrationpatterns/src/main/java/ratpack/sep/exec/InvokeWithRetry.java)
 Execute action and if it fails (thrown exception) retry it number of times.
 
 Example execution

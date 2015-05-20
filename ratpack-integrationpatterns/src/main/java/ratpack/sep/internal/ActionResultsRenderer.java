@@ -14,22 +14,22 @@
  * limitations under the License.
  */
 
-package r.p.handling.internal;
+package ratpack.sep.internal;
 
-import r.p.exec.ActionResults;
+import ratpack.sep.ActionResults;
 import ratpack.handling.Context;
 import ratpack.render.RendererSupport;
 
 import static ratpack.jackson.Jackson.json;
 
 /**
- * Serializes {@link r.p.exec.ActionResults} to {@code JSON} and sends it to the handler {@code response}.
+ * Serializes {@link ActionResults} to {@code JSON} and sends it to the handler {@code response}.
  * <p>
  * This renderer requires {@code ratpack.dependency(jackson)}
  */
 public class ActionResultsRenderer extends RendererSupport<ActionResults> {
   /**
-   * Renders {@link r.p.exec.ActionResults} as {@code JSON} string.
+   * Renders {@link ActionResults} as {@code JSON} string.
    *
    * @param context handler context
    * @param actionResults a collection of the action results

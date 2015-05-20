@@ -18,11 +18,11 @@ package r.p.handling.internal;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.reflect.TypeToken;
-import r.p.exec.Action;
-import r.p.exec.ActionResult;
-import r.p.exec.ActionResults;
-import r.p.pattern.InvokeWithRetry;
-import r.p.pattern.PatternsModule;
+import ratpack.sep.Action;
+import ratpack.sep.ActionResult;
+import ratpack.sep.ActionResults;
+import ratpack.sep.exec.InvokeWithRetry;
+import ratpack.sep.PatternsModule;
 import ratpack.handling.Context;
 import ratpack.handling.Handler;
 import ratpack.util.MultiValueMap;

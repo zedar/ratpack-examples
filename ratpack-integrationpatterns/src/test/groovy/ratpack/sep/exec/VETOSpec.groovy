@@ -14,22 +14,21 @@
  * limitations under the License.
  */
 
-package r.p.pattern
+package ratpack.sep.exec
 
-import org.omg.CORBA.Request
-import r.p.exec.Action
-import r.p.exec.ActionResult
-import r.p.exec.ActionResults
+import ratpack.sep.Action
+import ratpack.sep.ActionResult
+import ratpack.sep.ActionResults
 import ratpack.exec.ExecControl
 import ratpack.exec.ExecResult
 import ratpack.exec.Promise
 import ratpack.registry.Registries
 import ratpack.registry.Registry
+import ratpack.sep.exec.InvokeWithRetry
 import ratpack.test.exec.ExecHarness
 import spock.lang.AutoCleanup
 import spock.lang.IgnoreRest
 import spock.lang.Specification
-import sun.invoke.util.VerifyAccess
 
 class VETOSpec extends Specification {
 

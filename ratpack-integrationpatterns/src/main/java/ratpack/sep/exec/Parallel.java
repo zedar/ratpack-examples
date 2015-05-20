@@ -14,16 +14,17 @@
  * limitations under the License.
  */
 
-package r.p.pattern;
+package ratpack.sep.exec;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import r.p.exec.Action;
-import r.p.exec.ActionResult;
-import r.p.exec.ActionResults;
+import ratpack.sep.Action;
+import ratpack.sep.ActionResult;
+import ratpack.sep.ActionResults;
 import ratpack.exec.ExecControl;
 import ratpack.exec.Promise;
 import ratpack.registry.Registry;
+import ratpack.sep.PatternsModule;
 
 import java.util.Iterator;
 import java.util.Map;
@@ -34,9 +35,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  * <p>
  * Actions execute independently as {@code promises}. They are not notified about each other.
  *
- * @see r.p.pattern.Pattern
- * @see r.p.exec.Action
- * @see r.p.pattern.PatternsModule
+ * @see Pattern
+ * @see Action
+ * @see PatternsModule
  */
 public class Parallel<T,O> {
 
@@ -57,7 +58,7 @@ public class Parallel<T,O> {
   /**
    * Executes {@code Params.actions} in parallel.
    * <p>
-   * The result of each {@code action} execution is added to {@link r.p.exec.ActionResults}.
+   * The result of each {@code action} execution is added to {@link ActionResults}.
    * <p>
    * if {@code action} throws an exception it is equivalent to error result.
    *

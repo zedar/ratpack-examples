@@ -1,7 +1,7 @@
 package r.p.exec.internal;
 
-import r.p.exec.Action;
-import r.p.exec.ActionResult;
+import ratpack.sep.Action;
+import ratpack.sep.ActionResult;
 import ratpack.exec.ExecControl;
 import ratpack.exec.Promise;
 

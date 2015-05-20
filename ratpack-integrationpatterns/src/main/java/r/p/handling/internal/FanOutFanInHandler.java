@@ -18,12 +18,12 @@ package r.p.handling.internal;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.reflect.TypeToken;
-import r.p.exec.Action;
-import r.p.exec.ActionResult;
-import r.p.exec.ActionResults;
-import r.p.exec.TypedAction;
+import ratpack.sep.Action;
+import ratpack.sep.ActionResult;
+import ratpack.sep.ActionResults;
+import ratpack.sep.TypedAction;
 import r.p.exec.internal.LongBlockingIOAction;
-import r.p.pattern.FanOutFanIn;
+import ratpack.sep.exec.FanOutFanIn;
 import ratpack.handling.Context;
 import ratpack.handling.Handler;
 

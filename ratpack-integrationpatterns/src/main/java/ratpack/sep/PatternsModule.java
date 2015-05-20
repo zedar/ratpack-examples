@@ -14,10 +14,8 @@
  * limitations under the License.
  */
 
-package r.p.pattern;
+package ratpack.sep;
 
-import com.google.inject.Provides;
-import com.google.inject.Singleton;
 import ratpack.guice.ConfigurableModule;
 
 /**
@@ -40,7 +38,7 @@ public class PatternsModule extends ConfigurableModule<PatternsModule.Config> {
   }
 
   /**
-   * The configuration object for {@link r.p.pattern.PatternsModule}
+   * The configuration object for {@link PatternsModule}
    */
   public static class Config {
     private int defaultRetryCount;

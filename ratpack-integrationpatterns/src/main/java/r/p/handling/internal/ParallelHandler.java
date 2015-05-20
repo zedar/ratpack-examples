@@ -17,9 +17,9 @@
 package r.p.handling.internal;
 
 import com.google.common.reflect.TypeToken;
-import r.p.exec.Action;
+import ratpack.sep.Action;
 import r.p.exec.internal.LongBlockingIOAction;
-import r.p.pattern.Parallel;
+import ratpack.sep.exec.Parallel;
 import ratpack.handling.Context;
 import ratpack.handling.Handler;
 

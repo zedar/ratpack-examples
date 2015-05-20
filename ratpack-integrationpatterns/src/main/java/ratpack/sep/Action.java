@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-package r.p.exec;
+package ratpack.sep;
 
 import ratpack.exec.ExecControl;
 import ratpack.exec.Promise;
 import ratpack.func.Function;
+import ratpack.sep.exec.Pattern;
 
 /**
  * Executes any action. Could be blocking or non-blocking action.
@@ -26,12 +27,12 @@ import ratpack.func.Function;
  * Actions are typically used for external services invocation or internal computation logic execution.
  * The results exposed by actions can be reported via HTTP  by a {@link r.p.handling.ExecHandler}.
  * <p>
- * The actual execution is implemented by the {@link #exec(ExecControl)} method, that returns a promise for a {@link r.p.exec.ActionResult}.
+ * The actual execution is implemented by the {@link #exec(ExecControl)} method, that returns a promise for a {@link ActionResult}.
  * <p>
- * The actions are typically executed by the particular {@link r.p.pattern.Pattern} or combination of patterns.
+ * The actions are typically executed by the particular {@link Pattern} or combination of patterns.
  *
  * @see r.p.handling.ExecHandler
- * @see r.p.pattern.Pattern
+ * @see Pattern
  */
 public interface Action<T,O> {
   /**

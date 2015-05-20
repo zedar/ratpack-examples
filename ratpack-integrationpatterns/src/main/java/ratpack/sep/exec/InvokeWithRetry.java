@@ -14,20 +14,20 @@
  * limitations under the License.
  */
 
-package r.p.pattern;
+package ratpack.sep.exec;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import r.p.exec.Action;
-import r.p.exec.ActionResult;
-import r.p.exec.ActionResults;
-import ratpack.api.Nullable;
+import ratpack.sep.Action;
+import ratpack.sep.ActionResult;
+import ratpack.sep.ActionResults;
 import ratpack.exec.ExecControl;
 import ratpack.exec.Fulfiller;
 import ratpack.exec.Promise;
 import ratpack.registry.Registry;
+import ratpack.sep.PatternsModule;
 
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -81,7 +81,7 @@ public class InvokeWithRetry<T,O> {
   /**
    * Executes {@code action} and if it fails retries its execution given number of times.
    * <p>
-   * Default retry could be set as {@link r.p.pattern.PatternsModule.Config#defaultRetryCount} but could be overridden as
+   * Default retry could be set as {@link PatternsModule.Config#defaultRetryCount} but could be overridden as
    * {@code actionRetryCount}
    *
    * @param execControl an execution control

@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-package r.p.exec;
+package ratpack.sep;
 
 import com.google.common.collect.ImmutableMap;
+import ratpack.sep.ActionResult;
 
 /**
  * A value type representing the result of running multiple actions.

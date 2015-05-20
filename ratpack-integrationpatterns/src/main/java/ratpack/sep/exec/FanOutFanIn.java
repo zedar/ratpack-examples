@@ -14,13 +14,10 @@
  * limitations under the License.
  */
 
-package r.p.pattern;
+package ratpack.sep.exec;
 
 import com.google.common.collect.ImmutableMap;
-import r.p.exec.Action;
-import r.p.exec.ActionResult;
-import r.p.exec.ActionResults;
-import r.p.exec.TypedAction;
+import ratpack.sep.*;
 import ratpack.exec.ExecControl;
 import ratpack.exec.Promise;
 import ratpack.registry.Registry;
@@ -33,10 +30,10 @@ import java.util.Objects;
  * Actions execute independently and asynchronously as {@code promises}. They are not notified about each other.
  * The post processing action execute as {@code promise} too, so it is non-blocking.
  *
- * @see r.p.pattern.Pattern
- * @see r.p.exec.Action
- * @see r.p.exec.TypedAction
- * @see r.p.pattern.PatternsModule
+ * @see Pattern
+ * @see Action
+ * @see TypedAction
+ * @see PatternsModule
  */
 public class FanOutFanIn<T,O,U> {
 

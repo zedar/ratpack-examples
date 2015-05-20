@@ -17,8 +17,8 @@
 package r.p;
 
 import r.p.handling.ExecHandler;
-import r.p.handling.internal.ActionResultsRenderer;
-import r.p.pattern.PatternsModule;
+import ratpack.sep.internal.ActionResultsRenderer;
+import ratpack.sep.PatternsModule;
 import ratpack.guice.Guice;
 import ratpack.handling.ResponseTimer;
 import ratpack.health.HealthCheck;
@@ -34,7 +34,7 @@ public class Main {
             .add(PatternsModule.class, config -> {
               config.setDefaultRetryCount(3);
             })
-            .bindInstance(HealthCheck.of("eventLoopSize", execControl -> execControl
+            .bindInstance(HealthCheck.of("eventLoopSize", (execControl, registry) -> execControl
               .promiseOf(HealthCheck.Result.healthy())))
             .bindInstance(ActionResultsRenderer.class, new ActionResultsRenderer())
             .bindInstance(ResponseTimer.decorator())

@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-package r.p.pattern;
+package ratpack.sep.exec;
 
-import r.p.exec.ActionResults;
 import ratpack.exec.ExecControl;
 import ratpack.exec.Promise;
 import ratpack.registry.Registry;

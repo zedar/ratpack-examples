@@ -21,7 +21,6 @@ import com.google.common.reflect.TypeToken;
 import ratpack.sep.Action;
 import ratpack.sep.ActionResult;
 import ratpack.sep.ActionResults;
-import ratpack.sep.TypedAction;
 import r.p.exec.internal.LongBlockingIOAction;
 import ratpack.sep.exec.FanOutFanIn;
 import ratpack.handling.Context;
@@ -61,7 +60,7 @@ public class FanOutFanInHandler implements Handler {
         new LongBlockingIOAction("foo_5", "data"),
         new LongBlockingIOAction("foo_6", "data")
       ));
-      TypedAction<ActionResults<String>, ActionResults<String>> mergeResults = TypedAction.of("merge", (execControl, actionResults) ->
+      Action<ActionResults<String>, String> mergeResults = Action.of("merge", (execControl, actionResults) ->
           execControl.promise(fulfiller -> {
             final int[] counters = {0, 0};
             actionResults.getResults().forEach((name, result) -> {
@@ -73,7 +72,7 @@ public class FanOutFanInHandler implements Handler {
             });
             StringBuilder strB = new StringBuilder();
             strB.append("Succeeded: ").append(counters[0]).append(" Failed: ").append(counters[1]);
-            fulfiller.success(new ActionResults<>(ImmutableMap.of("COUNTED", ActionResult.error("0", strB.toString()))));
+            fulfiller.success(ActionResult.error("0", strB.toString()));
           })
       );
 

@@ -16,10 +16,13 @@ apply plugin: "groovy"
 
 repositories {
   jcenter()
+  mavenLocal()
 }
 
 dependencies {
   compile ratpack.dependency("jackson")
+
+  compile "ratpack-modules:ratpack-sep:0.1-SNAPSHOT"
 
   // SpringLoaded enables runtime hot reloading.
   // It is not part of the app runtime and is not shipped in the distribution.

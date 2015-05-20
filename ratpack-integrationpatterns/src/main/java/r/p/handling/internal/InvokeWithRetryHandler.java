@@ -42,11 +42,11 @@ public class InvokeWithRetryHandler implements Handler {
     try {
       AtomicInteger execCounter = new AtomicInteger(0);
       Action<String,String> action = Action.<String, String>of("foo", "data", execControl -> execControl
-        .promise( fulfiller -> {
-          if (execCounter.incrementAndGet() <= 10) {
-            throw new  IOException("FAILED EXECUTION");
+        .promise(fulfiller -> {
+          if (execCounter.incrementAndGet() <= 3) {
+            throw new IOException("FAILED EXECUTION");
           }
-          fulfiller.success(ActionResult.success());
+          fulfiller.success(ActionResult.success("BAR"));
         })
       );
 

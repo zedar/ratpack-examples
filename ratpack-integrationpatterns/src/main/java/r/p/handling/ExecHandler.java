@@ -25,17 +25,11 @@ import ratpack.sep.exec.Parallel;
 import ratpack.handling.Context;
 import ratpack.handling.Handler;
 import ratpack.sep.Action;
-import ratpack.sep.TypedAction;
-import ratpack.sep.exec.Pattern;
 
 /**
- * A handler that executes {@link Action actions} or {@link TypedAction typed actions} and renders their results.
+ * A handler that executes {@link Action actions} and renders their results.
  * <p>
  * The handler obtains pattern for actions execution from the context's registry.
- *
- * @see Action
- * @see TypedAction
- * @see Pattern
  */
 public class ExecHandler implements Handler {
   private final Handler fanOutFanInHandler = new FanOutFanInHandler();

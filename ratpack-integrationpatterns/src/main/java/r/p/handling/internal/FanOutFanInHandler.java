@@ -48,7 +48,7 @@ public class FanOutFanInHandler implements Handler {
       Iterable<Action<String,String>> actions = new LinkedList<>(Arrays.asList(
         new LongBlockingIOAction("foo", "data"),
         new LongBlockingIOAction("bar", "data"),
-        Action.<String,String>of("buzz", "data", execControl -> execControl
+        Action.<String,String>of("buzz", "data", (execControl, data) -> execControl
           .promise(fulfiller -> {
             throw new IOException("CONTROLLED EXCEPTION");
           })),
@@ -60,7 +60,7 @@ public class FanOutFanInHandler implements Handler {
         new LongBlockingIOAction("foo_5", "data"),
         new LongBlockingIOAction("foo_6", "data")
       ));
-      Action<ActionResults<String>, String> mergeResults = Action.of("merge", (execControl, actionResults) ->
+      Action<ActionResults<String>, String> mergeResults = Action.of("merge", null, (execControl, actionResults) ->
           execControl.promise(fulfiller -> {
             final int[] counters = {0, 0};
             actionResults.getResults().forEach((name, result) -> {

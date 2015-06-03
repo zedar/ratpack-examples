@@ -9,7 +9,6 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.util.CharsetUtil;
 import ratpack.registry.Registry;
-import ratpack.session.clientside.ValueSerializer;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -18,11 +17,10 @@ import java.nio.CharBuffer;
 import java.util.Base64;
 import java.util.Objects;
 
-public class KryoValueSerializer implements ValueSerializer {
+public class KryoValueSerializer {
   private static final Base64.Encoder ENCODER = Base64.getUrlEncoder();
   private static final Base64.Decoder DECODER = Base64.getUrlDecoder();
 
-  @Override
   public ByteBuf serialize(Registry registry, ByteBufAllocator bufAllocator, Object value) throws Exception {
     Objects.requireNonNull(value);
     KryoPool kryoPool = registry.get(KryoPool.class);
@@ -42,7 +40,6 @@ public class KryoValueSerializer implements ValueSerializer {
     }
   }
 
-  @Override
   public Object deserialize(Registry registry, String value) throws Exception {
     if (value == null || value.isEmpty()) {
       return null;

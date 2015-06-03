@@ -9,15 +9,12 @@ import r.kryo.KryoSerializerModule;
 import r.kryo.KryoValueSerializer;
 import ratpack.groovy.template.MarkupTemplateModule;
 import ratpack.guice.Guice;
-import ratpack.pac4j.Pac4jModule;
+import ratpack.pac4j.RatpackPac4j;
 import ratpack.server.RatpackServer;
 import ratpack.server.ServerConfig;
 import ratpack.session.SessionModule;
-import ratpack.session.clientside.ClientSideSessionsModule;
-import ratpack.session.clientside.serializer.JavaValueSerializer;
-import ratpack.session.store.MapSessionsModule;
+import ratpack.session.clientside.ClientSideSessionModule;
 
-import java.nio.file.Path;
 import java.time.Duration;
 
 import static ratpack.groovy.Groovy.groovyMarkupTemplate;
@@ -25,50 +22,37 @@ import static ratpack.groovy.Groovy.groovyMarkupTemplate;
 public class Main {
   public static void main(String... args) throws Exception {
     RatpackServer.start(server -> server
-        .serverConfig(ServerConfig.findBaseDir("application.properties"))
+      .serverConfig(ServerConfig.findBaseDir("application.properties"))
         .registry(Guice.registry(b -> b
-            .module(MarkupTemplateModule.class)
-
-            .module(KryoSerializerModule.class, config -> {
-            })
-
-              // --- ratpack 0.9.17 introduced LIFO registries. It is important to define ClientSideSessionsModule after Pac4jModule
-              //      to make SessionStorage object be accessible for Pac4j.
-            .module(new Pac4jModule<>(
-              new FormClient("/login", new SimpleTestUsernamePasswordAuthenticator(), new UsernameProfileCreator()),
-              new PathAuthorizer()
-            ))
-
-              // --- Add cookie session with java serialization of values of session entries
-            .module(ClientSideSessionsModule.class, config -> {
-              config.setSecretKey("aaaaaaaaaaaaaaaa");
-              // required to share the same session between app instances (in cluster)
-              config.setSecretToken("bbbbbb");
-              // IMPORTANT: JavaValueSerializer is set up as default. And it works very well with pac4j UserProfile class serialization.
-              config.setValueSerializer(new KryoValueSerializer());
-            })
-
-          // --- Add server side sessions with in-memory storage (works with one server instance only)
-          //.add(SessionModule.class)
-          //.add(new MapSessionsModule(10, 5))
+          .module(MarkupTemplateModule.class)
+          .module(SessionModule.class)
+          .module(ClientSideSessionModule.class, config -> {
+            config.setSecretKey("aaaaaaaaaaaaaaaa");
+            // required to share the same session between app instances (in cluster)
+            config.setSecretToken("bbbbbb");
+          })
         ))
         .handlers(chain -> chain
+          .handler(RatpackPac4j.callback(new FormClient("/login", new SimpleTestUsernamePasswordAuthenticator(), new UsernameProfileCreator())))
+          .get(ctx -> {
+            ctx.redirect("admin");
+          })
+          .prefix("admin", p -> p
+            .handler(RatpackPac4j.auth(FormClient.class))
             .get(ctx -> {
-              ctx.redirect("admin");
-            })
-            .get("admin", ctx -> {
               ctx.render("admin page ACCESSED");
             })
-            .get("login", ctx -> {
-              ctx.render(groovyMarkupTemplate("login.gtpl", model -> model
-                  .put("title", "Login")
-                  .put("action", "/pac4j-callback")
-                  .put("method", "get")
-                  .put("buttonText", "Login")
-                  .put("error", ctx.getRequest().getQueryParams().getOrDefault("error", ""))
-              ));
-            })
-            .assets("public")
+          )
+          .get("login", ctx -> {
+            ctx.render(groovyMarkupTemplate("login.gtpl", model -> model
+              .put("title", "Login")
+              .put("action", "/auth-callback")
+              .put("method", "get")
+              .put("buttonText", "Login")
+              .put("error", ctx.getRequest().getQueryParams().getOrDefault("error", ""))
+            ));
+          })
+          .assets("public")
         )
     );
   }

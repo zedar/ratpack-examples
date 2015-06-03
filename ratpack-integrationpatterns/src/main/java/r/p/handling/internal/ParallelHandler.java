@@ -39,7 +39,7 @@ public class ParallelHandler implements Handler {
       Iterable<Action<String,String>> actions = new LinkedList<>(Arrays.asList(
         new LongBlockingIOAction("foo", "data"),
         new LongBlockingIOAction("bar", "data"),
-        Action.<String,String>of("buzz", "data", execControl -> execControl
+        Action.<String,String>of("buzz", "data", (execControl, data) -> execControl
           .promise(fulfiller -> {
             throw new IOException("CONTROLLED EXCEPTION");
           })),
